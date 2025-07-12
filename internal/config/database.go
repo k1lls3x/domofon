@@ -9,8 +9,7 @@ import (
 )
 
 func Init() *sqlx.DB {
-	_ = godotenv.Load(".env")
-
+	godotenv.Load("../../.env")
 	cfg := LoadConfig()
 	db, err := sqlx.Connect("postgres", cfg.DSN())
 	if err != nil {
