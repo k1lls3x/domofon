@@ -7,7 +7,110 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const changePassword = `-- name: ChangePassword :exec
+UPDATE users SET password_hash = $1 WHERE username = $2
+`
+
+type ChangePasswordParams struct {
+	PasswordHash string
+	Username     string
+}
+
+func (q *Queries) ChangePassword(ctx context.Context, arg ChangePasswordParams) error {
+	_, err := q.db.Exec(ctx, changePassword, arg.PasswordHash, arg.Username)
+	return err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (username, password_hash, email, phone, role, is_active)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, username, password_hash, email, phone, role, is_active, created_at
+`
+
+type CreateUserParams struct {
+	Username     string
+	PasswordHash string
+	Email        pgtype.Text
+	Phone        pgtype.Text
+	Role         pgtype.Text
+	IsActive     pgtype.Bool
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser,
+		arg.Username,
+		arg.PasswordHash,
+		arg.Email,
+		arg.Phone,
+		arg.Role,
+		arg.IsActive,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Email,
+		&i.Phone,
+		&i.Role,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, username, password_hash, email, phone, role, is_active, created_at FROM users WHERE id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Email,
+		&i.Phone,
+		&i.Role,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, username, password_hash, email, phone, role, is_active, created_at FROM users WHERE username = $1
+`
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Email,
+		&i.Phone,
+		&i.Role,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
 
 const getUsers = `-- name: GetUsers :many
 SELECT id, username, password_hash, email, phone, role, is_active, created_at FROM users
@@ -41,4 +144,77 @@ func (q *Queries) GetUsers(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const registerUser = `-- name: RegisterUser :exec
+INSERT INTO users(username, password_hash, email, phone, role, is_active)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type RegisterUserParams struct {
+	Username     string
+	PasswordHash string
+	Email        pgtype.Text
+	Phone        pgtype.Text
+	Role         pgtype.Text
+	IsActive     pgtype.Bool
+}
+
+func (q *Queries) RegisterUser(ctx context.Context, arg RegisterUserParams) error {
+	_, err := q.db.Exec(ctx, registerUser,
+		arg.Username,
+		arg.PasswordHash,
+		arg.Email,
+		arg.Phone,
+		arg.Role,
+		arg.IsActive,
+	)
+	return err
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE users
+SET
+    username = $2,
+    password_hash = $3,
+    email = $4,
+    phone = $5,
+    role = $6,
+    is_active = $7
+WHERE id = $1
+RETURNING id, username, password_hash, email, phone, role, is_active, created_at
+`
+
+type UpdateUserParams struct {
+	ID           int32
+	Username     string
+	PasswordHash string
+	Email        pgtype.Text
+	Phone        pgtype.Text
+	Role         pgtype.Text
+	IsActive     pgtype.Bool
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUser,
+		arg.ID,
+		arg.Username,
+		arg.PasswordHash,
+		arg.Email,
+		arg.Phone,
+		arg.Role,
+		arg.IsActive,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Email,
+		&i.Phone,
+		&i.Role,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
 }

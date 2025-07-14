@@ -4,9 +4,9 @@ import (
     "encoding/json"
     "net/http"
     "github.com/gorilla/mux"
+    "domofon/internal/db"
     "domofon/internal/service"
-    "domofon/internal/model"
-   _ "context"
+    "strconv"
 )
 
 type UserHandler struct {
@@ -32,12 +32,13 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 // Создать пользователя
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
     ctx := r.Context()
-    var user model.User
-    if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+    var params db.CreateUserParams
+    if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-    if err := h.service.CreateUser(ctx, user); err != nil {
+    user, err := h.service.CreateUser(ctx, params)
+    if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
@@ -49,16 +50,20 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
     ctx := r.Context()
     vars := mux.Vars(r)
-    id := vars["id"]
-
-    var user model.User
-    if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+    idStr := vars["id"]
+    id, err := strconv.Atoi(idStr)
+    if err != nil {
+        http.Error(w, "invalid id", http.StatusBadRequest)
+        return
+    }
+    var params db.UpdateUserParams
+    if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-    user.ID = id // подставляем id из url
-
-    if err := h.service.UpdateUser(ctx, user); err != nil {
+    params.ID = int32(id) // обязательно подставить id!
+    user, err := h.service.UpdateUser(ctx, params)
+    if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
@@ -70,9 +75,13 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
     ctx := r.Context()
     vars := mux.Vars(r)
-    id := vars["id"]
-
-    if err := h.service.DeleteUser(ctx, id); err != nil {
+    idStr := vars["id"]
+    id, err := strconv.Atoi(idStr)
+    if err != nil {
+        http.Error(w, "invalid id", http.StatusBadRequest)
+        return
+    }
+    if err := h.service.DeleteUser(ctx, int32(id)); err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }

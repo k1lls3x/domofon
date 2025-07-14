@@ -1,27 +1,17 @@
 package config
 
 import (
-	"github.com/jmoiron/sqlx"
-	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
+	"context"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
-	"os"
 )
 
-func Init() *sqlx.DB {
-	godotenv.Load("../../.env")
-	cfg := LoadConfig()
-	db, err := sqlx.Connect("postgres", cfg.DSN())
+func NewPgxPool(cfg *Config) *pgxpool.Pool {
+	dsn := cfg.DSN()
+	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
-		log.Error().Err(err).Msg("❌ Ошибка подключения к PostgreSQL")
-		os.Exit(1)
+		log.Fatal().Err(err).Msg("❌ Failed to connect to PostgreSQL")
 	}
-
-	if err := db.Ping(); err != nil {
-		log.Error().Err(err).Msg("❌ PostgreSQL не отвечает")
-		os.Exit(1)
-	}
-
-	log.Info().Msg("✅ Подключение к PostgreSQL успешно")
-	return db
+	log.Info().Msg("✅ Connected to PostgreSQL")
+	return pool
 }

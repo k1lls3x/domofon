@@ -2,7 +2,7 @@ package service
 
 import (
     "context"
-    "domofon/internal/model"
+    "domofon/internal/db"         // <- заменили model на db
     "domofon/internal/repository"
 )
 
@@ -14,19 +14,22 @@ func NewUserService(repo repository.UserRepository) *UserService {
     return &UserService{repo: repo}
 }
 
-func (s *UserService) GetUsers(ctx context.Context) ([]model.User, error) {
-	return s.repo.GetUsers(ctx)
+// Получить всех пользователей
+func (s *UserService) GetUsers(ctx context.Context) ([]db.User, error) {
+    return s.repo.GetUsers(ctx)
 }
 
-func (s *UserService) CreateUser(ctx context.Context, user model.User) error {
-	return s.repo.CreateUser(ctx, user)
+// Создать пользователя
+func (s *UserService) CreateUser(ctx context.Context, params db.CreateUserParams) (db.User, error) {
+    return s.repo.CreateUser(ctx, params)
 }
 
-func (s *UserService) UpdateUser(ctx context.Context, user model.User) error {
-	return s.repo.UpdateUser(ctx, user)
+// Обновить пользователя
+func (s *UserService) UpdateUser(ctx context.Context, params db.UpdateUserParams) (db.User, error) {
+    return s.repo.UpdateUser(ctx, params)
 }
 
-func (s *UserService) DeleteUser(ctx context.Context, userID string) error {
-	return s.repo.DeleteUser(ctx, userID)
+// Удалить пользователя
+func (s *UserService) DeleteUser(ctx context.Context, userID int32) error {
+    return s.repo.DeleteUser(ctx, userID)
 }
-

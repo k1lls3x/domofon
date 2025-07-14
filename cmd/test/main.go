@@ -1,19 +1,23 @@
 package main
 
-
 import (
-	"log"
 	"net/http"
 	"domofon/internal/config"
+	"github.com/rs/zerolog/log"
 	serverhttp "domofon/server/http"
 )
 
-
 func main() {
-	router := serverhttp.NewRouter()
-	config.Init()
 	config.SetupLogger()
-	// Запуск сервера на порту 8080
-	log.Println("Server started at :8080")
-	log.Fatal(http.ListenAndServe(":8080", router))
+
+	cfg := config.LoadConfig()
+	pool := config.NewPgxPool(cfg)
+	defer pool.Close()
+
+	router := serverhttp.NewRouter(pool)
+
+	log.Info().Msg("Server started at :8080")
+	if err := http.ListenAndServe(":8080", router); err != nil {
+		log.Fatal().Err(err).Msg("Server stopped")
+	}
 }
