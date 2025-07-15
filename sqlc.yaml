@@ -4,9 +4,9 @@ sql:
     schema:
       - "migrations/001_create_table.up.sql"
     queries:
-      - "internal/db/query.sql"
+      - "internal/db/sql/query.sql"
     gen:
       go:
         package: "db"
-        out: "internal/db"
+        out: "db"
         sql_package: "pgx/v5"

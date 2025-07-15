@@ -2,23 +2,22 @@ package http
 
 import (
 	"github.com/gorilla/mux"
-	"domofon/internal/repository"
+	"domofon/internal/auth"
 	"domofon/internal/sms"
-	"domofon/internal/service"
-	"domofon/server/http/handler"
+	"domofon/internal/user"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func NewRouter(pool *pgxpool.Pool) *mux.Router {
-	userRepo := repository.NewUserRepository(pool)
-	userService := service.NewUserService(userRepo)
-	userHandler := handler.NewUserHandler(userService)
+	userRepo := user.NewUserRepository(pool)
+	userService := user.NewUserService(userRepo)
+	userHandler := user.NewUserHandler(userService)
 
-	authRepo := repository.NewAuthRepository(pool)
+	authRepo := auth.NewAuthRepository(pool)
 smsSender := &sms.MockSMSSender{}
-authService := service.NewAuthService(authRepo, smsSender)
+authService := auth.NewAuthService(authRepo, smsSender)
 
-	authHandler := handler.NewAuthHandler(authService)
+	authHandler := auth.NewAuthHandler(authService)
 
 	r := mux.NewRouter()
 
