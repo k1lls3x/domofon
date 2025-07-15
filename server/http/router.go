@@ -15,8 +15,9 @@ func NewRouter(pool *pgxpool.Pool) *mux.Router {
 	userHandler := handler.NewUserHandler(userService)
 
 	authRepo := repository.NewAuthRepository(pool)
-	smsSender := &sms.RealSMSSender{}
-	authService := service.NewAuthService(authRepo, smsSender)
+smsSender := &sms.MockSMSSender{}
+authService := service.NewAuthService(authRepo, smsSender)
+
 	authHandler := handler.NewAuthHandler(authService)
 
 	r := mux.NewRouter()

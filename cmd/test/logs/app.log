@@ -22,3 +22,5 @@
 {"level":"info","time":"2025-07-15T11:21:36+03:00","message":"Server started at :8080"}
 {"level":"info","time":"2025-07-15T12:03:41+03:00","message":"✅ Connected to PostgreSQL"}
 {"level":"info","time":"2025-07-15T12:03:41+03:00","message":"Server started at :8080"}
+{"level":"info","time":"2025-07-15T12:41:19+03:00","message":"✅ Connected to PostgreSQL"}
+{"level":"info","time":"2025-07-15T12:41:19+03:00","message":"Server started at :8080"}
