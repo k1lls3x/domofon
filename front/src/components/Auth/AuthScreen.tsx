@@ -1,46 +1,76 @@
+// components/Auth/AuthScreen.tsx
 import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { LoginForm }   from '../LoginForm';
+import {
+  SafeAreaView,
+  View,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Platform,
+} from 'react-native';
+
+import { LoginForm    } from '../LoginForm';
 import { RegisterForm } from '../RegisterForm';
-import { ForgotForm }   from '../ForgotForm';
+import { ForgotForm   } from '../ForgotForm';
 
 export const AuthScreen = () => {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
 
+  /** обёртка для login / forgot */
+  const wrap = (node: React.ReactNode) => (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={100}          // ↑ увеличено
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scroll}
+        >
+          <View style={styles.formCard}>{node}</View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
+  );
+
   return (
-    <View style={styles.container}>
-      {/* ❗️ белую «коробку» оставляем только для login / forgot,
-          у RegisterForm уже есть собственная обёртка */}
-      {mode === 'login' && (
-        <View style={styles.formBox}>
-          <LoginForm
-            onRegister={() => setMode('register')}
-            onForgot={() => setMode('forgot')}
-          />
-        </View>
+    <SafeAreaView style={styles.screen}>
+      {mode === 'login'   && wrap(
+        <LoginForm
+          onRegister={() => setMode('register')}
+          onForgot   ={() => setMode('forgot')}
+        />
+      )}
+
+      {mode === 'forgot'  && wrap(
+        <ForgotForm onLogin={() => setMode('login')} />
       )}
 
       {mode === 'register' && (
+        /* RegisterForm уже включает ScrollView + KAV */
         <RegisterForm onLogin={() => setMode('login')} />
       )}
-
-      {mode === 'forgot' && (
-        <View style={styles.formBox}>
-          <ForgotForm onLogin={() => setMode('login')} />
-        </View>
-      )}
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f7f8fa',
+  screen: { flex: 1, backgroundColor: '#f7f8fa' },
+
+  /* карточка не центрируем: сверху небольшой отступ,
+     дальше ScrollView берёт на себя прокрутку */
+  scroll: {
+    flexGrow: 1,
+    paddingTop: 40,            // внешний отступ сверху
+    paddingBottom: 24,
+    alignItems: 'center',
   },
-  formBox: {
-    flex: 1,                      
-    marginHorizontal: '2.5%',     
+
+  formCard: {
+    width: '95%',
     maxWidth: 410,
     backgroundColor: '#fff',
     borderRadius: 16,
