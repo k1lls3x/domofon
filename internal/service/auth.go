@@ -2,20 +2,32 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"time"
+"golang.org/x/crypto/bcrypt"
 	"domofon/internal/db"
 	"domofon/internal/repository"
-	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrInvalidOldPassword = errors.New("invalid old password")
+// Интерфейс отправки SMS — удобно для тестов/замены сервиса
+type SMSSender interface {
+	SendSMS(toPhone, message string) error
+}
+
+var (
+	ErrInvalidOldPassword = errors.New("invalid old password")
+	ErrInvalidResetToken  = errors.New("invalid or expired reset token")
+)
 
 type AuthService struct {
 	repo repository.Auth
+	sms  SMSSender
 }
 
-func NewAuthService(repo repository.Auth) *AuthService {
-	return &AuthService{repo: repo}
+func NewAuthService(repo repository.Auth, sms SMSSender) *AuthService {
+	return &AuthService{repo: repo, sms: sms}
 }
 
 func (s *AuthService) HashPassword(password string) (string, error) {
@@ -54,4 +66,52 @@ func (s *AuthService) ChangePassword(ctx context.Context, username, oldPassword,
 		return err
 	}
 	return s.repo.ChangePassword(ctx, username, newHash)
+}
+
+// Генерация токена (32 hex символа)
+func (s *AuthService) generateResetToken() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// Запрос сброса пароля по телефону — СМС с токеном
+func (s *AuthService) RequestPasswordResetByPhone(ctx context.Context, phone string) error {
+	user, err := s.repo.GetUserByPhone(ctx, phone)
+	if err != nil || user == nil {
+		// Не палим, есть ли пользователь с этим телефоном
+		return nil
+	}
+	token, err := s.generateResetToken()
+	if err != nil {
+		return err
+	}
+	expiresAt := time.Now().Add(30 * time.Minute)
+	err = s.repo.CreatePasswordResetToken(ctx, int64(user.ID), token, expiresAt)
+	if err != nil {
+		return err
+	}
+	if user.Phone.Valid {
+		_ = s.sms.SendSMS(user.Phone.String, "Код для сброса пароля: "+token)
+	}
+	return nil
+}
+
+// Сброс пароля по токену
+func (s *AuthService) ResetPasswordByToken(ctx context.Context, token, newPassword string) error {
+	user, err := s.repo.GetUserByResetToken(ctx, token)
+	if err != nil || user == nil {
+		return ErrInvalidResetToken
+	}
+	newHash, err := s.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	err = s.repo.ChangePassword(ctx, user.Username, newHash)
+	if err != nil {
+		return err
+	}
+	return s.repo.InvalidateResetToken(ctx, token)
 }

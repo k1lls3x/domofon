@@ -25,10 +25,26 @@ func (q *Queries) ChangePassword(ctx context.Context, arg ChangePasswordParams) 
 	return err
 }
 
+const createPasswordResetToken = `-- name: CreatePasswordResetToken :exec
+INSERT INTO password_reset_tokens (user_id, token, expires_at)
+VALUES ($1, $2, $3)
+`
+
+type CreatePasswordResetTokenParams struct {
+	UserID    pgtype.Int4
+	Token     string
+	ExpiresAt pgtype.Timestamp
+}
+
+func (q *Queries) CreatePasswordResetToken(ctx context.Context, arg CreatePasswordResetTokenParams) error {
+	_, err := q.db.Exec(ctx, createPasswordResetToken, arg.UserID, arg.Token, arg.ExpiresAt)
+	return err
+}
+
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, password_hash, email, phone, role, is_active)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, username, password_hash, email, phone, role, is_active, created_at
+INSERT INTO users (username, password_hash, email, phone, role, first_name, last_name)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name
 `
 
 type CreateUserParams struct {
@@ -37,7 +53,8 @@ type CreateUserParams struct {
 	Email        pgtype.Text
 	Phone        pgtype.Text
 	Role         pgtype.Text
-	IsActive     pgtype.Bool
+	FirstName    pgtype.Text
+	LastName     pgtype.Text
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -47,7 +64,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Email,
 		arg.Phone,
 		arg.Role,
-		arg.IsActive,
+		arg.FirstName,
+		arg.LastName,
 	)
 	var i User
 	err := row.Scan(
@@ -59,8 +77,19 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Role,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.FirstName,
+		&i.LastName,
 	)
 	return i, err
+}
+
+const deleteAllResetTokensForUser = `-- name: DeleteAllResetTokensForUser :exec
+DELETE FROM password_reset_tokens WHERE user_id = $1
+`
+
+func (q *Queries) DeleteAllResetTokensForUser(ctx context.Context, userID pgtype.Int4) error {
+	_, err := q.db.Exec(ctx, deleteAllResetTokensForUser, userID)
+	return err
 }
 
 const deleteUser = `-- name: DeleteUser :exec
@@ -73,7 +102,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password_hash, email, phone, role, is_active, created_at FROM users WHERE id = $1
+SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
@@ -88,12 +117,61 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.Role,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.FirstName,
+		&i.LastName,
+	)
+	return i, err
+}
+
+const getUserByPhone = `-- name: GetUserByPhone :one
+SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users WHERE phone = $1
+`
+
+func (q *Queries) GetUserByPhone(ctx context.Context, phone pgtype.Text) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByPhone, phone)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Email,
+		&i.Phone,
+		&i.Role,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.FirstName,
+		&i.LastName,
+	)
+	return i, err
+}
+
+const getUserByResetToken = `-- name: GetUserByResetToken :one
+SELECT u.id, u.username, u.password_hash, u.email, u.phone, u.role, u.is_active, u.created_at, u.first_name, u.last_name
+FROM users u
+JOIN password_reset_tokens prt ON prt.user_id = u.id
+WHERE prt.token = $1 AND prt.expires_at > NOW()
+`
+
+func (q *Queries) GetUserByResetToken(ctx context.Context, token string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByResetToken, token)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Email,
+		&i.Phone,
+		&i.Role,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.FirstName,
+		&i.LastName,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password_hash, email, phone, role, is_active, created_at FROM users WHERE username = $1
+SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users WHERE username = $1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -108,12 +186,14 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.Role,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.FirstName,
+		&i.LastName,
 	)
 	return i, err
 }
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, username, password_hash, email, phone, role, is_active, created_at FROM users
+SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users
 `
 
 // Получить всех пользователей
@@ -135,6 +215,8 @@ func (q *Queries) GetUsers(ctx context.Context) ([]User, error) {
 			&i.Role,
 			&i.IsActive,
 			&i.CreatedAt,
+			&i.FirstName,
+			&i.LastName,
 		); err != nil {
 			return nil, err
 		}
@@ -146,9 +228,18 @@ func (q *Queries) GetUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const invalidateResetToken = `-- name: InvalidateResetToken :exec
+DELETE FROM password_reset_tokens WHERE token = $1
+`
+
+func (q *Queries) InvalidateResetToken(ctx context.Context, token string) error {
+	_, err := q.db.Exec(ctx, invalidateResetToken, token)
+	return err
+}
+
 const registerUser = `-- name: RegisterUser :exec
-INSERT INTO users(username, password_hash, email, phone, role, is_active)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO users(username, password_hash, email, phone, role, is_active, first_name, last_name)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type RegisterUserParams struct {
@@ -158,6 +249,8 @@ type RegisterUserParams struct {
 	Phone        pgtype.Text
 	Role         pgtype.Text
 	IsActive     pgtype.Bool
+	FirstName    pgtype.Text
+	LastName     pgtype.Text
 }
 
 func (q *Queries) RegisterUser(ctx context.Context, arg RegisterUserParams) error {
@@ -168,21 +261,23 @@ func (q *Queries) RegisterUser(ctx context.Context, arg RegisterUserParams) erro
 		arg.Phone,
 		arg.Role,
 		arg.IsActive,
+		arg.FirstName,
+		arg.LastName,
 	)
 	return err
 }
 
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
-SET
-    username = $2,
+SET username = $2,
     password_hash = $3,
     email = $4,
     phone = $5,
     role = $6,
-    is_active = $7
+    first_name = $7,
+    last_name = $8
 WHERE id = $1
-RETURNING id, username, password_hash, email, phone, role, is_active, created_at
+RETURNING id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name
 `
 
 type UpdateUserParams struct {
@@ -192,7 +287,8 @@ type UpdateUserParams struct {
 	Email        pgtype.Text
 	Phone        pgtype.Text
 	Role         pgtype.Text
-	IsActive     pgtype.Bool
+	FirstName    pgtype.Text
+	LastName     pgtype.Text
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
@@ -203,7 +299,8 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		arg.Email,
 		arg.Phone,
 		arg.Role,
-		arg.IsActive,
+		arg.FirstName,
+		arg.LastName,
 	)
 	var i User
 	err := row.Scan(
@@ -215,6 +312,8 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.Role,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.FirstName,
+		&i.LastName,
 	)
 	return i, err
 }

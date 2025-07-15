@@ -17,11 +17,13 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 }
 
 type RegisterRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	Role     string `json:"role"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	Email      string `json:"email"`
+	Phone      string `json:"phone"`
+	Role       string `json:"role"`
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
 }
 
 type LoginRequest struct {
@@ -54,11 +56,13 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	params := db.RegisterUserParams{
     Username:     req.Username,
-    PasswordHash: hashedPassword, // ← Обычный string!
+    PasswordHash: hashedPassword,
     Email:        pgtype.Text{String: req.Email, Valid: req.Email != ""},
     Phone:        pgtype.Text{String: req.Phone, Valid: req.Phone != ""},
     Role:         pgtype.Text{String: req.Role, Valid: req.Role != ""},
     IsActive:     pgtype.Bool{Bool: true, Valid: true},
+    FirstName:    pgtype.Text{String: req.FirstName, Valid: req.FirstName != ""},
+    LastName:     pgtype.Text{String: req.LastName, Valid: req.LastName != ""},
 }
 
 
@@ -102,5 +106,39 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
+}
+
+type ForgotPasswordRequest struct {
+	Phone string `json:"phone"`
+}
+
+func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req ForgotPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
+		return
+	}
+	_ = h.auth.RequestPasswordResetByPhone(r.Context(), req.Phone)
+	// Всегда возвращаем 200 OK (не палим наличие номера)
+	w.WriteHeader(http.StatusOK)
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
+		return
+	}
+	err := h.auth.ResetPasswordByToken(r.Context(), req.Token, req.NewPassword)
+	if err != nil {
+		http.Error(w, "Ошибка сброса пароля: "+err.Error(), http.StatusBadRequest)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }

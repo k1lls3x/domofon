@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"domofon/internal/db" // путь к sqlc-сгенерированному пакету
+	"domofon/internal/db" // sqlc
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

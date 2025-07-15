@@ -84,6 +84,14 @@ type Medium struct {
 	CreatedAt pgtype.Timestamp
 }
 
+type PasswordResetToken struct {
+	ID        int32
+	UserID    pgtype.Int4
+	Token     string
+	ExpiresAt pgtype.Timestamp
+	CreatedAt pgtype.Timestamp
+}
+
 type SipAccount struct {
 	ID        int32
 	Username  string
@@ -103,4 +111,6 @@ type User struct {
 	Role         pgtype.Text
 	IsActive     pgtype.Bool
 	CreatedAt    pgtype.Timestamp
+	FirstName    pgtype.Text
+	LastName     pgtype.Text
 }

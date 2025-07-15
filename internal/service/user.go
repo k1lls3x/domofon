@@ -2,7 +2,7 @@ package service
 
 import (
     "context"
-    "domofon/internal/db"         // <- заменили model на db
+    "domofon/internal/db"        
     "domofon/internal/repository"
 )
 
