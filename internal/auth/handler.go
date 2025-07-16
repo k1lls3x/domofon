@@ -1,9 +1,10 @@
 package auth
 
 import (
+	"domofon/internal/db"
 	"encoding/json"
 	"net/http"
-	"domofon/internal/db"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -13,27 +14,6 @@ type AuthHandler struct {
 
 func NewAuthHandler(authService *AuthService) *AuthHandler {
 	return &AuthHandler{auth: authService}
-}
-
-type RegisterRequest struct {
-	Username   string `json:"username"`
-	Password   string `json:"password"`
-	Email      string `json:"email"`
-	Phone      string `json:"phone"`
-	Role       string `json:"role"`
-	FirstName  string `json:"first_name"`
-	LastName   string `json:"last_name"`
-}
-
-type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type ChangePasswordRequest struct {
-	Username    string `json:"username"`
-	OldPassword string `json:"old_password"`
-	NewPassword string `json:"new_password"`
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -54,24 +34,21 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := db.RegisterUserParams{
-    Username:     req.Username,
-    PasswordHash: hashedPassword,
-    Email:        pgtype.Text{String: req.Email, Valid: req.Email != ""},
-    Phone:        pgtype.Text{String: req.Phone, Valid: req.Phone != ""},
-    Role:         pgtype.Text{String: req.Role, Valid: req.Role != ""},
-    IsActive:     pgtype.Bool{Bool: true, Valid: true},
-    FirstName:    pgtype.Text{String: req.FirstName, Valid: req.FirstName != ""},
-    LastName:     pgtype.Text{String: req.LastName, Valid: req.LastName != ""},
-}
-
-
+		Username:     req.Username,
+		PasswordHash: hashedPassword,
+		Email:        pgtype.Text{String: req.Email, Valid: req.Email != ""},
+		Phone:        pgtype.Text{String: req.Phone, Valid: req.Phone != ""},
+		Role:         pgtype.Text{String: req.Role, Valid: req.Role != ""},
+		IsActive:     pgtype.Bool{Bool: true, Valid: true},
+		FirstName:    pgtype.Text{String: req.FirstName, Valid: req.FirstName != ""},
+		LastName:     pgtype.Text{String: req.LastName, Valid: req.LastName != ""},
+	}
 
 	err = h.auth.Register(r.Context(), params)
 	if err != nil {
-		http.Error(w, "Ошибка регистрации пользователя", http.StatusInternalServerError)
+		http.Error(w, "Ошибка регистрации пользователя: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -81,13 +58,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
 		return
 	}
-
-	user, ok := h.auth.Authorize(r.Context(), req.Username, req.Password)
-	if !ok {
-		http.Error(w, "Неверный логин или пароль", http.StatusUnauthorized)
+	if req.Phone == "" {
+		http.Error(w, "Требуется поле phone", http.StatusBadRequest)
 		return
 	}
-
+	user, ok := h.auth.AuthorizeByPhone(r.Context(), req.Phone, req.Password)
+	if !ok {
+		http.Error(w, "Неверный телефон или пароль", http.StatusUnauthorized)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
@@ -98,18 +77,16 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
 		return
 	}
-
-	err := h.auth.ChangePassword(r.Context(), req.Username, req.OldPassword, req.NewPassword)
+	if req.Phone == "" {
+		http.Error(w, "Требуется поле phone", http.StatusBadRequest)
+		return
+	}
+	err := h.auth.ChangePasswordByPhone(r.Context(), req.Phone, req.OldPassword, req.NewPassword)
 	if err != nil {
 		http.Error(w, "Ошибка смены пароля: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-
 	w.WriteHeader(http.StatusOK)
-}
-
-type ForgotPasswordRequest struct {
-	Phone string `json:"phone"`
 }
 
 func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
@@ -123,11 +100,6 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-type ResetPasswordRequest struct {
-	Token       string `json:"token"`
-	NewPassword string `json:"new_password"`
-}
-
 func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req ResetPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -137,6 +109,42 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	err := h.auth.ResetPasswordByToken(r.Context(), req.Token, req.NewPassword)
 	if err != nil {
 		http.Error(w, "Ошибка сброса пароля: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *AuthHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
+	var req VerifyPhoneRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
+		return
+	}
+	if req.Phone == "" || req.Code == "" {
+		http.Error(w, "Требуются поля phone и code", http.StatusBadRequest)
+		return
+	}
+	err := h.auth.VerifyPhoneCode(r.Context(), req.Phone, req.Code)
+	if err != nil {
+		http.Error(w, "Неверный или истёкший код", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// Можно добавить также RequestPhoneVerification (отправка СМС с кодом)
+func (h *AuthHandler) RequestPhoneVerification(w http.ResponseWriter, r *http.Request) {
+	var req RequestPhoneVerificationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
+		return
+	}
+	if req.Phone == "" {
+		http.Error(w, "Требуется поле phone", http.StatusBadRequest)
+		return
+	}
+	if err := h.auth.RequestPhoneVerification(r.Context(), req.Phone); err != nil {
+		http.Error(w, "Ошибка отправки кода: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)

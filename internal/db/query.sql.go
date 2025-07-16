@@ -25,6 +25,22 @@ func (q *Queries) ChangePassword(ctx context.Context, arg ChangePasswordParams) 
 	return err
 }
 
+const changePasswordByPhone = `-- name: ChangePasswordByPhone :exec
+UPDATE users
+SET password_hash = $1
+WHERE phone = $2
+`
+
+type ChangePasswordByPhoneParams struct {
+	PasswordHash string
+	Phone        pgtype.Text
+}
+
+func (q *Queries) ChangePasswordByPhone(ctx context.Context, arg ChangePasswordByPhoneParams) error {
+	_, err := q.db.Exec(ctx, changePasswordByPhone, arg.PasswordHash, arg.Phone)
+	return err
+}
+
 const createPasswordResetToken = `-- name: CreatePasswordResetToken :exec
 INSERT INTO password_reset_tokens (user_id, token, expires_at)
 VALUES ($1, $2, $3)
@@ -92,6 +108,15 @@ func (q *Queries) DeleteAllResetTokensForUser(ctx context.Context, userID pgtype
 	return err
 }
 
+const deletePhoneVerificationToken = `-- name: DeletePhoneVerificationToken :exec
+DELETE FROM phone_verification_tokens WHERE phone = $1
+`
+
+func (q *Queries) DeletePhoneVerificationToken(ctx context.Context, phone string) error {
+	_, err := q.db.Exec(ctx, deletePhoneVerificationToken, phone)
+	return err
+}
+
 const deleteUser = `-- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1
 `
@@ -99,6 +124,28 @@ DELETE FROM users WHERE id = $1
 func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 	_, err := q.db.Exec(ctx, deleteUser, id)
 	return err
+}
+
+const getPhoneVerificationToken = `-- name: GetPhoneVerificationToken :one
+SELECT phone, verification_code, expires_at, created_at FROM phone_verification_tokens
+WHERE phone = $1 AND verification_code = $2 AND expires_at > NOW()
+`
+
+type GetPhoneVerificationTokenParams struct {
+	Phone            string
+	VerificationCode string
+}
+
+func (q *Queries) GetPhoneVerificationToken(ctx context.Context, arg GetPhoneVerificationTokenParams) (PhoneVerificationToken, error) {
+	row := q.db.QueryRow(ctx, getPhoneVerificationToken, arg.Phone, arg.VerificationCode)
+	var i PhoneVerificationToken
+	err := row.Scan(
+		&i.Phone,
+		&i.VerificationCode,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
@@ -316,4 +363,22 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.LastName,
 	)
 	return i, err
+}
+
+const upsertPhoneVerificationToken = `-- name: UpsertPhoneVerificationToken :exec
+INSERT INTO phone_verification_tokens (phone, verification_code, expires_at)
+VALUES ($1, $2, $3)
+ON CONFLICT (phone)
+DO UPDATE SET verification_code = EXCLUDED.verification_code, expires_at = EXCLUDED.expires_at, created_at = CURRENT_TIMESTAMP
+`
+
+type UpsertPhoneVerificationTokenParams struct {
+	Phone            string
+	VerificationCode string
+	ExpiresAt        pgtype.Timestamp
+}
+
+func (q *Queries) UpsertPhoneVerificationToken(ctx context.Context, arg UpsertPhoneVerificationTokenParams) error {
+	_, err := q.db.Exec(ctx, upsertPhoneVerificationToken, arg.Phone, arg.VerificationCode, arg.ExpiresAt)
+	return err
 }

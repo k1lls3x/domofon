@@ -92,6 +92,13 @@ type PasswordResetToken struct {
 	CreatedAt pgtype.Timestamp
 }
 
+type PhoneVerificationToken struct {
+	Phone            string
+	VerificationCode string
+	ExpiresAt        pgtype.Timestamp
+	CreatedAt        pgtype.Timestamp
+}
+
 type SipAccount struct {
 	ID        int32
 	Username  string

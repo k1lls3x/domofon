@@ -52,3 +52,21 @@ DELETE FROM password_reset_tokens WHERE user_id = $1;
 
 -- name: GetUserByPhone :one
 SELECT * FROM users WHERE phone = $1;
+
+-- name: ChangePasswordByPhone :exec
+UPDATE users
+SET password_hash = $1
+WHERE phone = $2;
+
+-- name: UpsertPhoneVerificationToken :exec
+INSERT INTO phone_verification_tokens (phone, verification_code, expires_at)
+VALUES ($1, $2, $3)
+ON CONFLICT (phone)
+DO UPDATE SET verification_code = EXCLUDED.verification_code, expires_at = EXCLUDED.expires_at, created_at = CURRENT_TIMESTAMP;
+
+-- name: GetPhoneVerificationToken :one
+SELECT * FROM phone_verification_tokens
+WHERE phone = $1 AND verification_code = $2 AND expires_at > NOW();
+
+-- name: DeletePhoneVerificationToken :exec
+DELETE FROM phone_verification_tokens WHERE phone = $1;
