@@ -1,84 +1,76 @@
-// components/Auth/AuthScreen.tsx
-import React, { useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   SafeAreaView,
   View,
   StyleSheet,
-  ScrollView,
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Keyboard,
+  Animated,
+  Easing,
   Platform,
 } from 'react-native';
-
-import { LoginForm    } from '../LoginForm';
+import { LoginForm } from '../LoginForm';
 import { RegisterForm } from '../RegisterForm';
-import { ForgotForm   } from '../ForgotForm';
+import { ForgotForm } from '../ForgotForm';
 
-export const AuthScreen = () => {
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+type Mode = 'login' | 'register' | 'forgot';
 
-  /** обёртка для login / forgot */
-  const wrap = (node: React.ReactNode) => (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={100}          // ↑ увеличено
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scroll}
-        >
-          <View style={styles.formCard}>{node}</View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
-  );
+export const AuthScreen: React.FC = () => {
+  const [mode, setMode] = useState<Mode>('login');
+  const fade = useRef(new Animated.Value(1)).current;
+
+  // при смене mode — плавно затухаем и всплываем
+  const switchMode = (newMode: Mode) => {
+    if (newMode === mode) return;
+    Animated.timing(fade, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+      easing: Easing.out(Easing.ease),
+    }).start(() => {
+      setMode(newMode);
+      Animated.timing(fade, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }).start();
+    });
+  };
+
+  let Content: React.ReactNode;
+  if (mode === 'login') {
+    Content = <LoginForm onRegister={() => switchMode('register')} onForgot={() => switchMode('forgot')} />;
+  } else if (mode === 'register') {
+    Content = <RegisterForm onLogin={() => switchMode('login')} />;
+  } else {
+    Content = <ForgotForm onLogin={() => switchMode('login')} />;
+  }
 
   return (
     <SafeAreaView style={styles.screen}>
-      {mode === 'login'   && wrap(
-        <LoginForm
-          onRegister={() => setMode('register')}
-          onForgot   ={() => setMode('forgot')}
-        />
-      )}
-
-      {mode === 'forgot'  && wrap(
-        <ForgotForm onLogin={() => setMode('login')} />
-      )}
-
-      {mode === 'register' && (
-        /* RegisterForm уже включает ScrollView + KAV */
-        <RegisterForm onLogin={() => setMode('login')} />
-      )}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.avoider}
+        keyboardVerticalOffset={60}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <Animated.View style={[styles.container, { opacity: fade }]}>
+            {Content}
+          </Animated.View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f7f8fa' },
-
-  /* карточка не центрируем: сверху небольшой отступ,
-     дальше ScrollView берёт на себя прокрутку */
-  scroll: {
-    flexGrow: 1,
-    paddingTop: 40,            // внешний отступ сверху
-    paddingBottom: 24,
-    alignItems: 'center',
-  },
-
-  formCard: {
-    width: '95%',
-    maxWidth: 410,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#2563eb',
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 18,
-    elevation: 15,
+  screen: { flex: 1, backgroundColor: '#F7F8FA' },
+  avoider: { flex: 1 },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
 });

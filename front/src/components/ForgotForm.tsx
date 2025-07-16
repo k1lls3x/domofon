@@ -1,115 +1,93 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
+} from 'react-native';
+import MaskInput from 'react-native-mask-input';
 
-interface ForgotFormProps {
+interface Props {
   onLogin: () => void;
 }
 
-export const ForgotForm: React.FC<ForgotFormProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
+export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const onForgot = async () => {
-    if (!email) {
-      Alert.alert('Ошибка', 'Пожалуйста, введите email');
-      return;
-    }
+  const mask = ['+','7',' ', '(', /\d/, /\d/, /\d/, ')',' ', /\d/, /\d/, /\d/, '-', /\d/, /\d/, '-', /\d/, /\d/];
+  const digits = phone.replace(/\D/g, '');
+
+  const onSend = async () => {
+    if (digits.length !== 11) return Alert.alert('Ошибка', 'Введите корректный номер');
     setLoading(true);
-    try {
-      const response = await fetch('http://a7b7aa3ee7.vps.myjino.ru:49217/auth/forgot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        Alert.alert('Ошибка', data.message || 'Не удалось восстановить пароль');
-        setLoading(false);
-        return;
-      }
-
-      Alert.alert('Успех', 'Инструкция по восстановлению отправлена на email!');
-      // Если нужно сразу возвращаться на login:
+    setTimeout(() => {
+      setLoading(false);
+      Alert.alert('Успех', 'Смс с инструкциями отправлено');
       onLogin();
-    } catch (e) {
-      Alert.alert('Ошибка', 'Ошибка сети или сервера');
-    }
-    setLoading(false);
+    }, 800);
   };
 
   return (
-    <View>
-      <Text style={styles.title}>Восстановление пароля</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#b7c4e1"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoCorrect={false}
+    <View style={f.form}>
+      <Text style={f.title}>Восстановление пароля</Text>
+      <MaskInput
+        style={f.input}
+        placeholder="Телефон"
+        value={phone}
+        onChangeText={setPhone}
+        mask={mask}
+        keyboardType="phone-pad"
+        placeholderTextColor="#ABB2C1"
       />
-      <TouchableOpacity style={styles.button} onPress={onForgot} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Загрузка...' : 'Восстановить'}</Text>
+      <TouchableOpacity style={f.button} onPress={onSend} disabled={loading}>
+        <Text style={f.buttonText}>{loading ? 'Отправка…' : 'Восстановить'}</Text>
       </TouchableOpacity>
-      <View style={styles.linksOne}>
-        <TouchableOpacity onPress={onLogin}>
-          <Text style={styles.link}>Войти</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity onPress={onLogin} style={f.back}>
+        <Text style={f.backText}>Войти</Text>
+      </TouchableOpacity>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const f = StyleSheet.create({
+  form: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
+  },
   title: {
     fontSize: 24,
     fontWeight: '900',
     textAlign: 'center',
-    marginBottom: 22,
+    marginBottom: 24,
     color: '#222',
-    letterSpacing: 0.05,
   },
   input: {
     height: 48,
+    backgroundColor: '#FFF',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e3eaff',
-    backgroundColor: '#f9fbff',
-    borderRadius: 10,
-    paddingHorizontal: 16,
+    borderColor: '#D1D9E6',
+    paddingHorizontal: 14,
+    marginBottom: 16,
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 15,
   },
   button: {
-    marginTop: 10,
-    backgroundColor: '#2563eb',
-    borderRadius: 9,
-    paddingVertical: 13,
-    alignItems: 'center',
-    shadowColor: '#2563eb',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 9,
-    elevation: 5,
+    backgroundColor: '#3B6BF3',
+    borderRadius: 8,
+    paddingVertical: 14,
   },
   buttonText: {
-    color: '#fff',
-    fontWeight: '900',
-    fontSize: 18,
-    letterSpacing: 0.03,
-  },
-  linksOne: {
-    marginTop: 18,
-    alignItems: 'flex-end',
-    paddingHorizontal: 2,
-  },
-  link: {
-    color: '#2563eb',
+    color: '#FFF',
+    fontSize: 17,
     fontWeight: '700',
-    fontSize: 15.5,
-    marginTop: 8,
+    textAlign: 'center',
+  },
+  back: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  backText: {
+    color: '#3B6BF3',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
