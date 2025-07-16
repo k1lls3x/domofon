@@ -4,11 +4,14 @@ CREATE TABLE users (
     username        VARCHAR(64) UNIQUE NOT NULL,
     password_hash   VARCHAR(128) NOT NULL,
     email           VARCHAR(128),
-    phone           VARCHAR(32),
-    role            VARCHAR(32) DEFAULT 'user', -- admin, user, service
+    phone           VARCHAR(32) UNIQUE,
+    role            VARCHAR(32) DEFAULT 'user',
     is_active       BOOLEAN DEFAULT TRUE,
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    first_name      VARCHAR(64),
+    last_name       VARCHAR(64)
 );
+
 
 -- 2. APARTMENTS (Квартиры/офисы/объекты)
 CREATE TABLE apartments (
@@ -180,9 +183,7 @@ CREATE INDEX idx_device_logs_log_level ON device_logs (log_level);     -- фил
 CREATE INDEX idx_apartment_residents_resident_type ON apartment_residents (resident_type); -- фильтрация по типу жильца
 CREATE INDEX idx_apartment_residents_is_active ON apartment_residents (is_active);         -- активные/неактивные
 
-ALTER TABLE users
-ADD COLUMN first_name VARCHAR(64),
-ADD COLUMN last_name VARCHAR(64);
+
 
 CREATE TABLE password_reset_tokens (
     id SERIAL PRIMARY KEY,

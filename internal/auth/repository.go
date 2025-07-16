@@ -3,22 +3,22 @@ package auth
 import (
 	"context"
 	"domofon/internal/db"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/pgtype"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Auth interface {
 	RegisterUser(ctx context.Context, params db.RegisterUserParams) error
 	GetUserByUsername(ctx context.Context, username string) (*db.User, error)
-	ChangePassword(ctx context.Context, username, newPasswordHash string) error
 
 	CreatePasswordResetToken(ctx context.Context, userID int64, token string, expiresAt time.Time) error
 	GetUserByResetToken(ctx context.Context, token string) (*db.User, error)
 	InvalidateResetToken(ctx context.Context, token string) error
 	GetUserByPhone(ctx context.Context, phone string) (*db.User, error)
+	ChangePasswordByPhone(ctx context.Context, phone string, newHash string) error
 }
-
 
 type AuthRepository struct {
 	queries *db.Queries
@@ -40,16 +40,16 @@ func (r *AuthRepository) GetUserByUsername(ctx context.Context, username string)
 	return &user, nil
 }
 
-func (r *AuthRepository) ChangePassword(ctx context.Context, username string, newPasswordHash string) error {
-	return r.queries.ChangePassword(ctx, db.ChangePasswordParams{
-		Username:     username,
-		PasswordHash: newPasswordHash,
+func (r *AuthRepository) ChangePasswordByPhone(ctx context.Context, phone, newHash string) error {
+	return r.queries.ChangePasswordByPhone(ctx, db.ChangePasswordByPhoneParams{
+		PasswordHash: newHash,
+		Phone:        pgtype.Text{String: phone, Valid: true},
 	})
 }
 func (r *AuthRepository) CreatePasswordResetToken(ctx context.Context, userID int64, token string, expiresAt time.Time) error {
 	return r.queries.CreatePasswordResetToken(ctx, db.CreatePasswordResetTokenParams{
-		UserID:   pgtype.Int4{Int32: int32(userID), Valid: true},
-		Token:    token,
+		UserID:    pgtype.Int4{Int32: int32(userID), Valid: true},
+		Token:     token,
 		ExpiresAt: pgtype.Timestamp{Time: expiresAt, Valid: true},
 	})
 }

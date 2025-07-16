@@ -52,3 +52,8 @@ DELETE FROM password_reset_tokens WHERE user_id = $1;
 
 -- name: GetUserByPhone :one
 SELECT * FROM users WHERE phone = $1;
+
+-- name: ChangePasswordByPhone :exec
+UPDATE users
+SET password_hash = $1
+WHERE phone = $2;

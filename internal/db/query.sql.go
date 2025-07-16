@@ -25,6 +25,22 @@ func (q *Queries) ChangePassword(ctx context.Context, arg ChangePasswordParams) 
 	return err
 }
 
+const changePasswordByPhone = `-- name: ChangePasswordByPhone :exec
+UPDATE users
+SET password_hash = $1
+WHERE phone = $2
+`
+
+type ChangePasswordByPhoneParams struct {
+	PasswordHash string
+	Phone        pgtype.Text
+}
+
+func (q *Queries) ChangePasswordByPhone(ctx context.Context, arg ChangePasswordByPhoneParams) error {
+	_, err := q.db.Exec(ctx, changePasswordByPhone, arg.PasswordHash, arg.Phone)
+	return err
+}
+
 const createPasswordResetToken = `-- name: CreatePasswordResetToken :exec
 INSERT INTO password_reset_tokens (user_id, token, expires_at)
 VALUES ($1, $2, $3)
