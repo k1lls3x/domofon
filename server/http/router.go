@@ -1,10 +1,10 @@
 package http
 
 import (
-	"github.com/gorilla/mux"
 	"domofon/internal/auth"
-	"domofon/internal/sms"
 	"domofon/internal/user"
+
+	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -14,8 +14,8 @@ func NewRouter(pool *pgxpool.Pool) *mux.Router {
 	userHandler := user.NewUserHandler(userService)
 
 	authRepo := auth.NewAuthRepository(pool)
-smsSender := &sms.MockSMSSender{}
-authService := auth.NewAuthService(authRepo, smsSender)
+	smsSender := &auth.MockSMSSender{}
+	authService := auth.NewAuthService(authRepo, smsSender)
 
 	authHandler := auth.NewAuthHandler(authService)
 
@@ -32,9 +32,10 @@ authService := auth.NewAuthService(authRepo, smsSender)
 	r.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
 	r.HandleFunc("/auth/change-password", authHandler.ChangePassword).Methods("POST")
 
-
 	r.HandleFunc("/auth/forgot-password", authHandler.ForgotPassword).Methods("POST")
-r.HandleFunc("/auth/reset-password", authHandler.ResetPassword).Methods("POST")
+	r.HandleFunc("/auth/reset-password", authHandler.ResetPassword).Methods("POST")
+	r.HandleFunc("/auth/request-phone-verification", authHandler.RequestPhoneVerification).Methods("POST")
+	r.HandleFunc("/auth/verify-phone", authHandler.VerifyPhone).Methods("POST")
 
 	return r
 }

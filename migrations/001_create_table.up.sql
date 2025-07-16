@@ -195,3 +195,10 @@ CREATE TABLE password_reset_tokens (
 
 CREATE INDEX idx_password_reset_tokens_token ON password_reset_tokens (token);
 CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens (user_id);
+
+CREATE TABLE phone_verification_tokens (
+    phone VARCHAR(15) PRIMARY KEY,
+    verification_code VARCHAR(10) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
