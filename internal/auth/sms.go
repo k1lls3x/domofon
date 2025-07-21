@@ -21,7 +21,7 @@ func (s *MockSMSSender) SendSMS(toPhone, message string) error {
 	return nil
 }
 
-// Реальная версия (например, через sms.ru)
+
 type RealSMSSender struct{}
 
 func (s *RealSMSSender) SendSMS(toPhone, message string) error {

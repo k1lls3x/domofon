@@ -37,6 +37,7 @@ type ResetPasswordRequest struct {
 type RequestPhoneVerificationRequest struct {
 	Phone string `json:"phone"`
 }
+
 type VerifyPhoneRequest struct {
 	Phone string `json:"phone"`
 	Code  string `json:"code"`

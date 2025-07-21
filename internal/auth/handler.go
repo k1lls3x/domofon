@@ -96,7 +96,7 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = h.auth.RequestPasswordResetByPhone(r.Context(), req.Phone)
-	// Всегда возвращаем 200 OK (не палим наличие номера)
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -132,7 +132,7 @@ func (h *AuthHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// Можно добавить также RequestPhoneVerification (отправка СМС с кодом)
+
 func (h *AuthHandler) RequestPhoneVerification(w http.ResponseWriter, r *http.Request) {
 	var req RequestPhoneVerificationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

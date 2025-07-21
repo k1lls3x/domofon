@@ -19,8 +19,8 @@ type Auth interface {
 	GetUserByPhone(ctx context.Context, phone string) (*db.User, error)
 	ChangePasswordByPhone(ctx context.Context, phone string, newHash string) error
 	UpsertPhoneVerificationToken(ctx context.Context, phone, code string, expiresAt time.Time) error
-    GetPhoneVerificationToken(ctx context.Context, phone, code string) (*db.PhoneVerificationToken, error)
-    DeletePhoneVerificationToken(ctx context.Context, phone string) error
+  GetPhoneVerificationToken(ctx context.Context, phone, code string) (*db.PhoneVerificationToken, error)
+   DeletePhoneVerificationToken(ctx context.Context, phone string) error
 }
 
 type AuthRepository struct {

@@ -1,4 +1,5 @@
--- Удаляем индексы (они часто удаляются автоматически вместе с таблицей, но для чистоты явно удаляем)
+-- === УДАЛЕНИЕ ВСЕГО ===
+-- Удаление индексов (на случай, если не удалились автоматически)
 DROP INDEX IF EXISTS idx_users_username;
 DROP INDEX IF EXISTS idx_users_email;
 DROP INDEX IF EXISTS idx_users_phone;
@@ -42,12 +43,18 @@ DROP INDEX IF EXISTS idx_apartment_residents_user;
 DROP INDEX IF EXISTS idx_apartment_residents_resident_type;
 DROP INDEX IF EXISTS idx_apartment_residents_is_active;
 
--- Могли быть ещё кастомные индексы:
+DROP INDEX IF EXISTS idx_password_reset_tokens_token;
+DROP INDEX IF EXISTS idx_password_reset_tokens_user_id;
+
+-- Могли быть добавлены произвольные индексы
 DROP INDEX IF EXISTS idx_access_keys_user;
 DROP INDEX IF EXISTS idx_events_type_time;
 DROP INDEX IF EXISTS idx_events_device_time;
 
--- Удаляем таблицы в обратном порядке связей (от самых зависимых к базовым)
+-- Удаление таблиц (в обратном порядке связей)
+DROP TABLE IF EXISTS phone_verification_tokens;
+DROP TABLE IF EXISTS password_reset_tokens;
+DROP TABLE IF EXISTS settings;
 DROP TABLE IF EXISTS device_logs;
 DROP TABLE IF EXISTS media;
 DROP TABLE IF EXISTS access_history;
@@ -58,4 +65,3 @@ DROP TABLE IF EXISTS devices;
 DROP TABLE IF EXISTS sip_accounts;
 DROP TABLE IF EXISTS apartments;
 DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS settings;
