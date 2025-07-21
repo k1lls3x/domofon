@@ -1,96 +1,145 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator,
+  View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, TextInput
 } from 'react-native';
 import MaskInput from 'react-native-mask-input';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as API from './rest';
+import { useTheme } from './Theme.Context';
+import { login } from './rest';
 
-export const LoginForm: React.FC<{
+const PHONE_MASK = ['+','7',' ', '(', /\d/,/\d/,/\d/,')',' ',/\d/,/\d/,/\d/,'-',/\d/,/\d/,'-',/\d/,/\d/];
+
+interface Props {
   onRegister: () => void;
   onForgot: () => void;
-}> = ({ onRegister, onForgot }) => {
+}
+
+export const LoginForm: React.FC<Props> = ({ onRegister, onForgot }) => {
+  const { theme } = useTheme();
   const [phone, setPhone] = useState('');
   const [pass, setPass] = useState('');
   const [hide, setHide] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
-  const mask = ['+','7',' ', '(', /\d/,/\d/,/\d/,')',' ',/\d/,/\d/,/\d/,'-',/\d/,/\d/,'-',/\d/,/\d/];
   const digits = phone.replace(/\D/g, '');
+  const valid = digits.length === 11 && pass.length > 0;
 
-  const onLogin = async () => {
-    if (!digits || !pass) {
-      return Alert.alert('Ошибка', 'Заполните все поля');
-    }
+  const onSubmit = async () => {
+    if (!valid) return;
     setLoading(true);
+    setErr('');
     try {
-      const { message, token } = await API.login(digits, pass);
-      // TODO: сохранить token, редирект
-      Alert.alert('Успех', message);
+      await login(digits, pass); // Предполагаем, что login выбрасывает ошибку при неверных данных
+      Alert.alert('Успешный вход', 'Вы успешно вошли в аккаунт!');
+      // Здесь можно сбросить поля или выполнить переход
     } catch (e: any) {
-      Alert.alert('Ошибка', e.message);
+      setErr('Неверный номер телефона или пароль');
+      Alert.alert('Ошибка входа', 'Неверный номер телефона или пароль');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={s.form}>
-      <Text style={s.title}>Вход</Text>
+    <View style={[styles.form, { backgroundColor: theme.card }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Вход</Text>
       <MaskInput
-        style={s.input}
+        style={[
+          styles.input,
+          { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
+        ]}
         placeholder="Телефон"
-        keyboardType="phone-pad"
         value={phone}
         onChangeText={setPhone}
-        mask={mask}
-        placeholderTextColor="#ABB2C1"
+        mask={PHONE_MASK}
+        keyboardType="phone-pad"
+        placeholderTextColor={theme.subtext}
       />
-      <View style={s.inputWrapper}>
+      <View style={styles.inputWrapper}>
         <TextInput
-          style={s.input}
+          style={[
+            styles.input,
+            { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
+          ]}
           placeholder="Пароль"
-          secureTextEntry={hide}
+          placeholderTextColor={theme.subtext}
           value={pass}
           onChangeText={setPass}
-          placeholderTextColor="#ABB2C1"
+          secureTextEntry={hide}
         />
-        <TouchableOpacity style={s.eye} onPress={()=>setHide(h=>!h)}>
-          <MaterialCommunityIcons
-            name={hide?'eye-off-outline':'eye-outline'}
-            size={20}
-            color="#3B6BF3"
-          />
+        <TouchableOpacity style={styles.eye} onPress={() => setHide(h => !h)}>
+          <MaterialCommunityIcons name={hide ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
         </TouchableOpacity>
       </View>
-      <TouchableOpacity style={s.button} onPress={onLogin} disabled={loading}>
+      {err.length > 0 && <Text style={[styles.error, { color: '#e43a4b' }]}>{err}</Text>}
+      <TouchableOpacity
+        style={[
+          styles.btn,
+          !valid ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
+        ]}
+        onPress={onSubmit}
+        disabled={!valid || loading}
+        activeOpacity={valid ? 0.8 : 1}
+      >
         {loading
-          ? <ActivityIndicator color="#FFF"/>
-          : <Text style={s.buttonText}>Войти</Text>
+          ? <ActivityIndicator color={theme.btnText} />
+          : <Text style={[
+              styles.btnText,
+              !valid ? { color: theme.btnTextDisabled } : { color: theme.btnText }
+            ]}>Войти</Text>
         }
       </TouchableOpacity>
-      <View style={s.links}>
-        <TouchableOpacity onPress={onForgot}><Text style={s.link}>Забыли пароль?</Text></TouchableOpacity>
-        <TouchableOpacity onPress={onRegister}><Text style={s.link}>Регистрация</Text></TouchableOpacity>
+      <View style={styles.linkRow}>
+        <TouchableOpacity onPress={onForgot} style={{ flex: 1 }}>
+          <Text style={[styles.link, { color: theme.icon }]}>Забыли пароль?</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onRegister} style={{ flex: 1 }}>
+          <Text style={[styles.link, { color: theme.icon }]}>Регистрация</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-const s = StyleSheet.create({
-  form: { width:'92%', maxWidth:400, alignSelf:'center' },
-  title: { fontSize:28, fontWeight:'900', textAlign:'center', marginBottom:24, color:'#222' },
+const styles = StyleSheet.create({
+  form: {
+    borderRadius: 18,
+    padding: 22,
+    maxWidth: 400,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  title: { fontSize: 28, fontWeight: '900', textAlign: 'center', marginBottom: 20 },
   input: {
-    height:48, backgroundColor:'#FFF', borderRadius:8, borderWidth:1, borderColor:'#D1D9E6',
-    paddingHorizontal:14, marginBottom:16, fontSize:16
+    height: 50,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    paddingHorizontal: 18,
+    fontSize: 16.5,
+    marginBottom: 12,
+    fontWeight: '600',
   },
-  inputWrapper: { position:'relative' },
-  eye: { position:'absolute', right:14, top:0, bottom:0, justifyContent:'center' },
-  button: {
-    backgroundColor:'#3B6BF3', borderRadius:8, paddingVertical:14, alignItems:'center', marginTop:8
+  inputWrapper: { position: 'relative', marginBottom: 12 },
+  eye: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' },
+  btn: {
+    borderRadius: 13,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
   },
-  buttonText: { color:'#FFF', fontSize:17, fontWeight:'700' },
-  links: { flexDirection:'row', justifyContent:'space-between', marginTop:20 },
-  link: { color:'#3B6BF3', fontSize:15, fontWeight:'600' },
+  btnText: { fontWeight: '900', fontSize: 18, letterSpacing: 0.05 },
+  linkRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    width: '100%',
+  },
+  link: {
+    fontWeight: '700',
+    fontSize: 15.5,
+    textAlign: 'center',
+  },
+  error: { fontSize: 13, marginLeft: 4, marginBottom: 10, fontWeight: '600' },
 });
