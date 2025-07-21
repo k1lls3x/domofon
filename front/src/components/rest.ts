@@ -1,5 +1,4 @@
-// /src/rest.ts
-const BASE_URL = 'http://a7b7aa3ee7.vps.myjino.ru:49217';
+const BASE_URL = 'http://194.84.56.147:8080';
 
 export interface AuthResponse {
   message: string;
@@ -7,11 +6,13 @@ export interface AuthResponse {
 }
 
 export interface RegisterPayload {
-  first_name: string;
-  last_name: string;
+  username: string;
+  password: string;
   email: string;
   phone: string;
-  password: string;
+  role: string;
+  first_name: string;
+  last_name: string;
 }
 
 async function request<T>(path: string, body: any): Promise<T> {
@@ -22,21 +23,44 @@ async function request<T>(path: string, body: any): Promise<T> {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    // Считаем, что сервер отдаёт { message: string }
     throw new Error((data as any).message || `Ошибка ${res.status}`);
   }
   return data as T;
 }
 
+// --- Авторизация ---
 export function login(phone: string, password: string): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/login', { phone, password });
 }
 
+// --- Регистрация ---
 export function register(payload: RegisterPayload): Promise<AuthResponse> {
+  // payload = { first_name, last_name, email, phone, password }
   return request<AuthResponse>('/auth/register', payload);
 }
 
+// Запросить SMS-код для подтверждения телефона (для регистрации или забыл пароль)
+export function requestPhoneVerification(phone: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/request-phone-verification', { phone });
+}
+
+// Подтвердить телефон по коду из SMS (используется и в регистрации, и в восстановлении пароля)
+export function verifyPhone(phone: string, code: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/verify-phone', { phone, code });
+}
+
+// --- Восстановление пароля ---
+// 1. Запрос SMS-кода для сброса пароля
 export function forgotPassword(phone: string): Promise<AuthResponse> {
-  // на вашем бэке маршрут называется /auth/forgot-password
   return request<AuthResponse>('/auth/forgot-password', { phone });
+}
+
+// 2. Сбросить пароль после верификации телефона
+export function resetPassword(phone: string, password: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/reset-password', { phone, password });
+}
+
+// --- Смена пароля внутри профиля (по старому паролю, опционально) ---
+export function changePassword(phone: string, oldPassword: string, newPassword: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/change-password', { phone, old_password: oldPassword, new_password: newPassword });
 }
