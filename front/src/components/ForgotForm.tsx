@@ -83,21 +83,23 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
   };
 
   const handleResetPassword = async () => {
-    setErr('');
-    if (!pass.length || !pass.latin || !pass.upper || !pass.lower || !pass.digit || !pass.symbol) {
-      setErr('Пароль не соответствует требованиям');
-      return;
-    }
-    setLoading(true);
-    try {
-      await resetPassword(digits, newPass);
-      Alert.alert('Готово', 'Пароль успешно изменён!', [{ text: 'Войти', onPress: onLogin }]);
-    } catch (e: any) {
-      setErr(e.message || 'Ошибка');
-    } finally {
-      setLoading(false);
-    }
-  };
+  setErr('');
+  if (newPass.length < 6 || !/[A-Za-z]/.test(newPass) || !/\d/.test(newPass)) {
+    setErr('Пароль должен быть минимум 6 символов, содержать буквы и цифры');
+    return;
+  }
+  setLoading(true);
+  try {
+    // token — это code, newPassword — это новый пароль
+    await resetPassword(code, newPass);
+    Alert.alert('Готово', 'Пароль успешно изменён!', [{ text: 'Войти', onPress: onLogin }]);
+  } catch (e: any) {
+    setErr(e.message || 'Ошибка');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <View style={[styles.form, { backgroundColor: theme.card }]}>

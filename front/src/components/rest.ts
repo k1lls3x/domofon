@@ -70,8 +70,8 @@ export function forgotPassword(phone: string): Promise<AuthResponse> {
 }
 
 // 2. Сбросить пароль после верификации телефона
-export function resetPassword(phone: string, password: string): Promise<AuthResponse> {
-  return request<AuthResponse>('/auth/reset-password', { phone, password });
+export function resetPassword(token: string, newPassword: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/reset-password', { token, newPassword });
 }
 
 // --- Смена пароля внутри профиля (по старому паролю, опционально) ---
