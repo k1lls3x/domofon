@@ -26,11 +26,15 @@ async function request<T>(path: string, body: any): Promise<T> {
     data = await res.json();
   } catch {}
   if (!res.ok) {
-    // Если 409 и нет явного сообщения — подменяем ошибку на человеко-понятную
+    // Проверка ошибок по маршруту
     if (res.status === 409 && path.includes('request-phone-verification')) {
       throw new Error('Аккаунт с этим номером уже существует');
     }
     if (res.status === 409 && path.includes('register')) {
+      // Если в ответе есть конкретика про username — показываем её, иначе общий текст
+      if (data?.message && data.message.toLowerCase().includes('username')) {
+        throw new Error('Этот username уже занят');
+      }
       throw new Error('Такой username или номер телефона уже используется');
     }
     throw new Error((data && data.message) || 'Ошибка');

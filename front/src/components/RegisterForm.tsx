@@ -272,89 +272,99 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
       )}
 
       {step === 3 && (
-        <>
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
-            ]}
-            placeholder="Username"
-            value={username}
-            onChangeText={t => {
-              setUsername(t);
-              setUserErr('');
-            }}
-            placeholderTextColor={theme.subtext}
-            autoCapitalize="none"
-          />
-          {userErr.length > 0 && (
-            <Text style={{ color: '#e43a4b', marginTop: 8 }}>{userErr}</Text>
-          )}
-          <View style={styles.inputWrap}>
-            <TextInput
-              style={[
-                styles.input,
-                { flex: 1, backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text, marginBottom: 0 }
-              ]}
-              placeholder="Пароль"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={hide}
-              placeholderTextColor={theme.subtext}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity style={styles.eye} onPress={() => setHide(h => !h)}>
-              <MaterialCommunityIcons name={hide ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.inputWrap}>
-            <TextInput
-              style={[
-                styles.input,
-                { flex: 1, backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text, marginBottom: 0 }
-              ]}
-              placeholder="Подтвердите пароль"
-              value={password2}
-              onChangeText={setPassword2}
-              secureTextEntry={hide2}
-              placeholderTextColor={theme.subtext}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity style={styles.eye} onPress={() => setHide2(h => !h)}>
-              <MaterialCommunityIcons name={hide2 ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
-            </TouchableOpacity>
-          </View>
-          <View style={{marginBottom: 8, marginTop: 2}}>
-            <PasswordRule ok={pass.length} label="Не менее 8 символов" />
-            <PasswordRule ok={pass.latin} label="Только латиница" />
-            <PasswordRule ok={pass.upper} label="Есть заглавная буква" />
-            <PasswordRule ok={pass.lower} label="Есть строчная буква" />
-            <PasswordRule ok={pass.digit} label="Есть цифра" />
-            <PasswordRule ok={pass.symbol} label="Есть спецсимвол" />
-            <PasswordRule ok={password === password2 && password2.length > 0} label="Пароли совпадают" />
-          </View>
-          {err.length > 0 && (
-            <Text style={{ color: '#e43a4b', marginTop: 8 }}>{err}</Text>
-          )}
-          <TouchableOpacity
-            style={[
-              styles.btn,
-              !validStep3 ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
-            ]}
-            onPress={onRegister}
-            disabled={loading || !validStep3}
-            activeOpacity={validStep3 ? 0.8 : 1}
-          >
-            {loading
-              ? <ActivityIndicator color={theme.btnText} />
-              : <Text style={[
-                  styles.btnText,
-                  !validStep3 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
-                ]}>Зарегистрироваться</Text>
-            }
-          </TouchableOpacity>
-        </>
-      )}
+  <>
+    {/* Сообщение об ошибке username — НАД инпутом */}
+    {userErr.length > 0 && (
+      <Text style={{
+        color: '#e43a4b',
+        marginBottom: 6,
+        marginLeft: 2,
+        fontSize: 14
+      }}>
+        {userErr}
+      </Text>
+    )}
+
+    <TextInput
+      style={[
+        styles.input,
+        { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
+      ]}
+      placeholder="Username"
+      value={username}
+      onChangeText={t => {
+        setUsername(t);
+        setUserErr('');
+      }}
+      placeholderTextColor={theme.subtext}
+      autoCapitalize="none"
+    />
+
+    <View style={styles.inputWrap}>
+      <TextInput
+        style={[
+          styles.input,
+          { flex: 1, backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text, marginBottom: 0 }
+        ]}
+        placeholder="Пароль"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry={hide}
+        placeholderTextColor={theme.subtext}
+        autoCapitalize="none"
+      />
+      <TouchableOpacity style={styles.eye} onPress={() => setHide(h => !h)}>
+        <MaterialCommunityIcons name={hide ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
+      </TouchableOpacity>
+    </View>
+    <View style={styles.inputWrap}>
+      <TextInput
+        style={[
+          styles.input,
+          { flex: 1, backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text, marginBottom: 0 }
+        ]}
+        placeholder="Подтвердите пароль"
+        value={password2}
+        onChangeText={setPassword2}
+        secureTextEntry={hide2}
+        placeholderTextColor={theme.subtext}
+        autoCapitalize="none"
+      />
+      <TouchableOpacity style={styles.eye} onPress={() => setHide2(h => !h)}>
+        <MaterialCommunityIcons name={hide2 ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
+      </TouchableOpacity>
+    </View>
+    <View style={{marginBottom: 8, marginTop: 2}}>
+      <PasswordRule ok={pass.length} label="Не менее 8 символов" />
+      <PasswordRule ok={pass.upper} label="Есть заглавная буква" />
+      <PasswordRule ok={pass.lower} label="Есть строчная буква" />
+      <PasswordRule ok={pass.digit} label="Есть цифра" />
+      <PasswordRule ok={pass.symbol} label="Есть спецсимвол" />
+      <PasswordRule ok={password === password2 && password2.length > 0} label="Пароли совпадают" />
+    </View>
+    {err.length > 0 && (
+      <Text style={{ color: '#e43a4b', marginTop: 8 }}>{err}</Text>
+    )}
+    <TouchableOpacity
+      style={[
+        styles.btn,
+        !validStep3 ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
+      ]}
+      onPress={onRegister}
+      disabled={loading || !validStep3}
+      activeOpacity={validStep3 ? 0.8 : 1}
+    >
+      {loading
+        ? <ActivityIndicator color={theme.btnText} />
+        : <Text style={[
+            styles.btnText,
+            !validStep3 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
+          ]}>Зарегистрироваться</Text>
+      }
+    </TouchableOpacity>
+  </>
+)}
+
     </View>
   );
 };
