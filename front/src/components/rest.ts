@@ -21,9 +21,19 @@ async function request<T>(path: string, body: any): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  const data = await res.json().catch(() => ({}));
+  let data: any = {};
+  try {
+    data = await res.json();
+  } catch {}
   if (!res.ok) {
-    throw new Error((data as any).message || `Ошибка ${res.status}`);
+    // Если 409 и нет явного сообщения — подменяем ошибку на человеко-понятную
+    if (res.status === 409 && path.includes('request-phone-verification')) {
+      throw new Error('Аккаунт с этим номером уже существует');
+    }
+    if (res.status === 409 && path.includes('register')) {
+      throw new Error('Такой username или номер телефона уже используется');
+    }
+    throw new Error((data && data.message) || 'Ошибка');
   }
   return data as T;
 }
