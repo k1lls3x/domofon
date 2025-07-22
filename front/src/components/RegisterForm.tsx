@@ -27,14 +27,15 @@ const checkPassword = (password: string) => ({
 
 function formatErr(e: any, field?: string) {
   const msg = (typeof e === 'string' ? e : (e?.message || '')).toLowerCase();
-  if (field === 'username' && msg.includes('username')) return 'Этот username уже занят';
-  if (field === 'phone' && (msg.includes('phone') || msg.includes('номер'))) return 'Аккаунт с этим номером уже существует';
+  if ((field === 'phone' || msg.includes('phone') || msg.includes('номер') || msg.includes('существ')) && !msg.includes('username'))
+    return 'Пользователь с этим номером уже существует';
+  if ((field === 'username' || msg.includes('username')) && !msg.includes('phone'))
+    return 'Этот username уже занят';
   if (field === 'code' && (msg.includes('код') || msg.includes('code') || msg.includes('not valid') || msg.includes('incorrect'))) return 'Неверный код';
-  if (msg.includes('username')) return 'Этот username уже занят';
-  if (msg.includes('phone') || msg.includes('номер')) return 'Аккаунт с этим номером уже существует';
   if (msg.includes('код') || msg.includes('code') || msg.includes('not valid') || msg.includes('incorrect')) return 'Неверный код';
   return e?.message || 'Ошибка';
 }
+
 
 interface Props { onLogin: () => void; }
 

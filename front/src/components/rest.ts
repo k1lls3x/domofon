@@ -18,10 +18,44 @@ async function request<T>(path: string, body: any): Promise<T> {
   } catch {}
 
   if (!res.ok) {
+    const msg = (data && data.message ? data.message.toLowerCase() : '');
+
+    // Проверка email
+    if (msg.includes('email')) {
+      throw new Error('Пользователь с этим email уже существует');
+    }
+
+    // Проверка username
+    if (msg.includes('username') || msg.includes('юзернейм')) {
+      throw new Error('Этот username уже занят');
+    }
+
+    // Проверка номера телефона (и на регистрацию, и на сброс)
+    if (msg.includes('phone') || msg.includes('номер')) {
+      throw new Error('Пользователь с этим номером уже существует');
+    }
+    // Для забыл пароль — если not found, not registered и др.
+    if (
+      path.includes('forgot') ||
+      path.includes('reset') ||
+      path.includes('password')
+    ) {
+      if (
+        msg.includes('not found') ||
+        msg.includes('не найден') ||
+        msg.includes('not registered') ||
+        msg.includes('does not exist') ||
+        msg.includes('doesn\'t exist')
+      ) {
+        throw new Error('Данный номер не зарегистрирован');
+      }
+    }
+
     throw new Error((data && data.message) || 'Ошибка');
   }
   return data as T;
 }
+
 
 // --- Авторизация ---
 export function login(phone: string, password: string): Promise<AuthResponse> {
@@ -74,7 +108,7 @@ export function requestPasswordResetCode(phone: string): Promise<AuthResponse> {
 }
 
 // 2. Подтвердить код сброса (тот же verifyPhone)
-export { verifyPhone as verifyResetCode }
+export { verifyPhone as verifyResetCode };
 
 // 3. Сбросить пароль
 export function resetPasswordByPhone(
