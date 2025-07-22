@@ -3,7 +3,8 @@ import {
   View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ActivityIndicator
 } from 'react-native';
 import MaskInput from 'react-native-mask-input';
-import { forgotPassword, verifyPhone, resetPassword } from './rest';
+import { requestPhoneVerification, verifyPhone, resetPasswordByPhone } from './rest';
+
 import { useTheme } from './Theme.Context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -45,42 +46,42 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
   const pass = checkPassword(newPass);
 
   const handleForgot = async () => {
-    setErr('');
-    if (digits.length !== 11) {
-      setErr('Введите корректный номер');
-      return;
-    }
-    setLoading(true);
-    try {
-      await forgotPassword(digits);
-      setStep(1);
-      setCode('');
-      Alert.alert('Код отправлен', 'Введите код из SMS');
-    } catch (e: any) {
-      setErr(formatErr(e, 'phone'));
-    } finally {
-      setLoading(false);
-    }
-  };
+  setErr('');
+  if (digits.length !== 11) {
+    setErr('Введите корректный номер');
+    return;
+  }
+  setLoading(true);
+  try {
+    await requestPhoneVerification(digits);
+    setStep(1);
+    setCode('');
+    Alert.alert('Код отправлен', 'Введите код из SMS');
+  } catch (e: any) {
+    setErr(formatErr(e, 'phone'));
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const handleVerifyCode = async () => {
-    setErr('');
-    if (code.length !== 4) {
-      setErr('Введите код из 4 цифр');
-      return;
-    }
-    setLoading(true);
-    try {
-      await verifyPhone(digits, code);
-      setStep(2);
-      setNewPass('');
-      Alert.alert('Код подтверждён', 'Введите новый пароль');
-    } catch (e: any) {
-      setErr(formatErr(e, 'code'));
-    } finally {
-      setLoading(false);
-    }
-  };
+ const handleVerifyCode = async () => {
+  setErr('');
+  if (code.length !== 4) {
+    setErr('Введите код из 4 цифр');
+    return;
+  }
+  setLoading(true);
+  try {
+    await verifyPhone(digits, code);
+    setStep(2);
+    setNewPass('');
+    Alert.alert('Код подтверждён', 'Введите новый пароль');
+  } catch (e: any) {
+    setErr(formatErr(e, 'code'));
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleResetPassword = async () => {
   setErr('');
@@ -90,11 +91,10 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
   }
   setLoading(true);
   try {
-    // token — это code, newPassword — это новый пароль
-    await resetPassword(code, newPass);
+    await resetPasswordByPhone(digits, newPass);
     Alert.alert('Готово', 'Пароль успешно изменён!', [{ text: 'Войти', onPress: onLogin }]);
   } catch (e: any) {
-    setErr(e.message || 'Ошибка');
+    setErr(formatErr(e));
   } finally {
     setLoading(false);
   }

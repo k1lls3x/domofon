@@ -28,11 +28,11 @@ type ChangePasswordRequest struct {
 type ForgotPasswordRequest struct {
 	Phone string `json:"phone"`
 }
-type ResetPasswordRequest struct {
-	Token       string `json:"token"`
-	NewPassword string `json:"new_password"`
-}
 
+type ResetPasswordRequest struct {
+    Phone       string `json:"phone"`
+    NewPassword string `json:"newPassword"`
+}
 // --- Верификация номера ---
 type RequestPhoneVerificationRequest struct {
 	Phone string `json:"phone"`

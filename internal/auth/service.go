@@ -4,8 +4,9 @@ import (
 	"context"
 	"domofon/internal/db"
 	"errors"
-
+	"sync"
 	"golang.org/x/crypto/bcrypt"
+	"time"
 )
 
 var (
@@ -15,6 +16,7 @@ var (
 type AuthService struct {
 	repo Auth
 	sms  SMSSender
+	 verifiedPhones sync.Map
 }
 
 func NewAuthService(repo Auth, sms SMSSender) *AuthService {
@@ -61,3 +63,54 @@ func (s *AuthService) ChangePasswordByPhone(ctx context.Context, phone, oldPassw
 	return s.repo.ChangePasswordByPhone(ctx, phone, newHash)
 }
 
+
+// Метод для добавления телефона с TTL (например 5 минут)
+func (s *AuthService) markPhoneVerified(phone string) {
+    s.verifiedPhones.Store(phone, time.Now().Add(5*time.Minute))
+}
+
+// Проверка, подтверждён ли телефон и не истёк ли TTL
+func (s *AuthService) IsPhoneVerifiedForReset(ctx context.Context, phone string) bool {
+    val, ok := s.verifiedPhones.Load(phone)
+    if !ok {
+        return false
+    }
+    expireTime, ok := val.(time.Time)
+    if !ok {
+        return false
+    }
+    if time.Now().After(expireTime) {
+        s.verifiedPhones.Delete(phone)
+        return false
+    }
+    return true
+}
+
+// Очистка телефона после сброса
+func (s *AuthService) ClearPhoneVerifiedForReset(ctx context.Context, phone string) {
+    s.verifiedPhones.Delete(phone)
+}
+
+func (s *AuthService) ResetPasswordByPhone(ctx context.Context, phone, newPassword string) error {
+    if !s.IsPhoneVerifiedForReset(ctx, phone) {
+        return errors.New("phone not verified for password reset")
+    }
+
+    user, err := s.repo.GetUserByPhone(ctx, phone)
+    if err != nil || user == nil {
+        return errors.New("user not found")
+    }
+
+    newHash, err := s.HashPassword(newPassword)
+    if err != nil {
+        return err
+    }
+
+    err = s.repo.ChangePasswordByPhone(ctx, phone, newHash)
+    if err != nil {
+        return err
+    }
+
+    s.ClearPhoneVerifiedForReset(ctx, phone)
+    return nil
+}

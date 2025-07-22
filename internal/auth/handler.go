@@ -4,8 +4,9 @@ import (
 	"domofon/internal/db"
 	"encoding/json"
 	"net/http"
-
+_"errors"
 	"github.com/jackc/pgx/v5/pgtype"
+_	"context"
 )
 
 type AuthHandler struct {
@@ -100,19 +101,24 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+
 func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req ResetPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
 		return
 	}
-	err := h.auth.ResetPasswordByToken(r.Context(), req.Token, req.NewPassword)
+
+	err := h.auth.ResetPasswordByPhone(r.Context(), req.Phone, req.NewPassword)
 	if err != nil {
 		http.Error(w, "Ошибка сброса пароля: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 }
+
+
 
 func (h *AuthHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 	var req VerifyPhoneRequest

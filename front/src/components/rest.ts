@@ -5,33 +5,24 @@ export interface AuthResponse {
   token?: string;
 }
 
-export interface RegisterPayload {
-  username: string;
-  password: string;
-  email: string;
-  phone: string;
-  role: string;
-  first_name: string;
-  last_name: string;
-}
-
 async function request<T>(path: string, body: any): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+
   let data: any = {};
   try {
     data = await res.json();
   } catch {}
+
   if (!res.ok) {
-    // Проверка ошибок по маршруту
+    // Общая обработка ошибок
     if (res.status === 409 && path.includes('request-phone-verification')) {
       throw new Error('Аккаунт с этим номером уже существует');
     }
     if (res.status === 409 && path.includes('register')) {
-      // Если в ответе есть конкретика про username — показываем её, иначе общий текст
       if (data?.message && data.message.toLowerCase().includes('username')) {
         throw new Error('Этот username уже занят');
       }
@@ -48,33 +39,38 @@ export function login(phone: string, password: string): Promise<AuthResponse> {
 }
 
 // --- Регистрация ---
+export interface RegisterPayload {
+  username: string;
+  password: string;
+  email: string;
+  phone: string;
+  role: string;
+  first_name: string;
+  last_name: string;
+}
+
 export function register(payload: RegisterPayload): Promise<AuthResponse> {
-  // payload = { first_name, last_name, email, phone, password }
   return request<AuthResponse>('/auth/register', payload);
 }
 
-// Запросить SMS-код для подтверждения телефона (для регистрации или забыл пароль)
+// --- Трёхшаговый сброс пароля ---
+
+// 1. Запросить SMS-код для подтверждения телефона (регистрация или сброс)
 export function requestPhoneVerification(phone: string): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/request-phone-verification', { phone });
 }
 
-// Подтвердить телефон по коду из SMS (используется и в регистрации, и в восстановлении пароля)
+// 2. Подтвердить телефон кодом из SMS
 export function verifyPhone(phone: string, code: string): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/verify-phone', { phone, code });
 }
 
-// --- Восстановление пароля ---
-// 1. Запрос SMS-кода для сброса пароля
-export function forgotPassword(phone: string): Promise<AuthResponse> {
-  return request<AuthResponse>('/auth/forgot-password', { phone });
+// 3. Сбросить пароль после подтверждения телефона
+export function resetPasswordByPhone(phone: string, newPassword: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/reset-password', { phone, newPassword });
 }
 
-// 2. Сбросить пароль после верификации телефона
-export function resetPassword(token: string, newPassword: string): Promise<AuthResponse> {
-  return request<AuthResponse>('/auth/reset-password', { token, newPassword });
-}
-
-// --- Смена пароля внутри профиля (по старому паролю, опционально) ---
+// --- Смена пароля внутри профиля ---
 export function changePassword(phone: string, oldPassword: string, newPassword: string): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/change-password', { phone, old_password: oldPassword, new_password: newPassword });
 }
