@@ -5,8 +5,12 @@ import {
 } from 'react-native';
 import MaskInput from 'react-native-mask-input';
 import { useTheme } from './Theme.Context';
-import { requestPhoneVerification, verifyPhone, register } from './rest';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  requestRegistrationCode,
+  verifyPhone,
+  register
+} from './rest';
 
 const PHONE_MASK = ['+','7',' ', '(', /\d/,/\d/,/\d/,')',' ',/\d/,/\d/,/\d/,'-',/\d/,/\d/,'-',/\d/,/\d/];
 
@@ -59,24 +63,25 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
   const pass = checkPassword(password);
 
   // Шаг 0: отправка телефона (и проверка на уникальность — сервер сам всё валидирует!)
-  const onSendPhone = async () => {
-    setErr('');
-    if (digits.length !== 11) {
-      setErr('Введите корректный номер');
-      return;
-    }
-    setLoading(true);
-    try {
-      await requestPhoneVerification(digits);
-      setStep(1);
-      setCode('');
-      Alert.alert('Код отправлен', 'Введите код из SMS');
-    } catch (e: any) {
-      setErr(formatErr(e, 'phone'));
-    } finally {
-      setLoading(false);
-    }
-  };
+const onSendPhone = async () => {
+  setErr('');
+  if (digits.length !== 11) {
+    setErr('Введите корректный номер');
+    return;
+  }
+  setLoading(true);
+  try {
+    await requestRegistrationCode(digits);
+    setStep(1);
+    setCode('');
+    Alert.alert('Код отправлен', 'Введите код из SMS');
+  } catch (e: any) {
+    setErr(formatErr(e, 'phone'));
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Шаг 1: подтверждение кода
   const onCheckCode = async () => {

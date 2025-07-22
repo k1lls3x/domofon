@@ -18,16 +18,6 @@ async function request<T>(path: string, body: any): Promise<T> {
   } catch {}
 
   if (!res.ok) {
-    // Общая обработка ошибок
-    if (res.status === 409 && path.includes('request-phone-verification')) {
-      throw new Error('Аккаунт с этим номером уже существует');
-    }
-    if (res.status === 409 && path.includes('register')) {
-      if (data?.message && data.message.toLowerCase().includes('username')) {
-        throw new Error('Этот username уже занят');
-      }
-      throw new Error('Такой username или номер телефона уже используется');
-    }
     throw new Error((data && data.message) || 'Ошибка');
   }
   return data as T;
@@ -38,7 +28,31 @@ export function login(phone: string, password: string): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/login', { phone, password });
 }
 
-// --- Регистрация ---
+// --- Смена пароля внутри профиля ---
+export function changePassword(
+  phone: string,
+  oldPassword: string,
+  newPassword: string
+): Promise<AuthResponse> {
+  return request<AuthResponse>(
+    '/auth/change-password',
+    { phone, old_password: oldPassword, new_password: newPassword }
+  );
+}
+
+// --- Регистрация (отдельный поток) ---
+
+// 1. Запросить код для регистрации на свободный номер
+export function requestRegistrationCode(phone: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/request-registration-code', { phone });
+}
+
+// 2. Подтвердить код регистрации
+export function verifyPhone(phone: string, code: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/verify-phone', { phone, code });
+}
+
+// 3. Завершить регистрацию — создать нового пользователя
 export interface RegisterPayload {
   username: string;
   password: string;
@@ -48,29 +62,24 @@ export interface RegisterPayload {
   first_name: string;
   last_name: string;
 }
-
 export function register(payload: RegisterPayload): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/register', payload);
 }
 
-// --- Трёхшаговый сброс пароля ---
+// --- Сброс пароля (три шага) ---
 
-// 1. Запросить SMS-код для подтверждения телефона (регистрация или сброс)
-export function requestPhoneVerification(phone: string): Promise<AuthResponse> {
+// 1. Запросить код для сброса на существующий номер
+export function requestPasswordResetCode(phone: string): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/request-phone-verification', { phone });
 }
 
-// 2. Подтвердить телефон кодом из SMS
-export function verifyPhone(phone: string, code: string): Promise<AuthResponse> {
-  return request<AuthResponse>('/auth/verify-phone', { phone, code });
-}
+// 2. Подтвердить код сброса (тот же verifyPhone)
+export { verifyPhone as verifyResetCode }
 
-// 3. Сбросить пароль после подтверждения телефона
-export function resetPasswordByPhone(phone: string, newPassword: string): Promise<AuthResponse> {
+// 3. Сбросить пароль
+export function resetPasswordByPhone(
+  phone: string,
+  newPassword: string
+): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/reset-password', { phone, newPassword });
-}
-
-// --- Смена пароля внутри профиля ---
-export function changePassword(phone: string, oldPassword: string, newPassword: string): Promise<AuthResponse> {
-  return request<AuthResponse>('/auth/change-password', { phone, old_password: oldPassword, new_password: newPassword });
 }

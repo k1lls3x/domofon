@@ -4,7 +4,9 @@ import (
 	"context"
 	"domofon/internal/db"
 	"time"
+"errors"
 
+   "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -21,7 +23,10 @@ type Auth interface {
 	UpsertPhoneVerificationToken(ctx context.Context, phone, code string, expiresAt time.Time) error
   GetPhoneVerificationToken(ctx context.Context, phone, code string) (*db.PhoneVerificationToken, error)
    DeletePhoneVerificationToken(ctx context.Context, phone string) error
-}
+	IsPhoneTaken(ctx context.Context, phone string) (bool, error)
+  IsUsernameTaken(ctx context.Context, username string) (bool, error)
+	}
+
 
 type AuthRepository struct {
 	queries *db.Queries
@@ -99,4 +104,25 @@ func (r *AuthRepository) GetPhoneVerificationToken(ctx context.Context, phone, c
 
 func (r *AuthRepository) DeletePhoneVerificationToken(ctx context.Context, phone string) error {
 	return r.queries.DeletePhoneVerificationToken(ctx, phone)
+}
+func (r *AuthRepository) IsPhoneTaken(ctx context.Context, phone string) (bool, error) {
+    _, err := r.queries.GetUserByPhone(ctx, pgtype.Text{String: phone, Valid: phone != ""})
+    if err != nil {
+        if errors.Is(err, pgx.ErrNoRows) {
+            return false, nil
+        }
+        return false, err
+    }
+    // Если нет ошибки, значит пользователь найден
+    return true, nil
+}
+func (r *AuthRepository) IsUsernameTaken(ctx context.Context, username string) (bool, error) {
+	_, err := r.queries.GetUserByUsername(ctx, username)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }

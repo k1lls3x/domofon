@@ -4,17 +4,14 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"time"
 	"fmt"
+	"time"
 )
 
-var (
-	ErrInvalidResetToken = errors.New("invalid or expired reset token")
-)
+// Ошибка, когда токен для сброса невалиден
+var ErrInvalidResetToken = errors.New("invalid or expired reset token")
 
-// Генерация токена (32 hex символа)
-
-// Запрос сброса пароля по телефону — СМС с токеном
+// generate4DigitCode — тот же генератор 4-значного кода
 func generate4DigitCode() string {
 	b := make([]byte, 2)
 	_, _ = rand.Read(b)
@@ -22,76 +19,64 @@ func generate4DigitCode() string {
 	return fmt.Sprintf("%04d", n)
 }
 
+// RequestPasswordResetByPhone — запрос кода сброса пароля на телефон.
+// Шаг 1 трёхшагового сброса:
+//  1) Проверяем, что пользователь существует.
+//  2) Генерируем и сохраняем одноразовый код в БД.
+//  3) Отправляем SMS.
+//  4) Помечаем телефон в кеше, чтобы в ResetPasswordByPhone можно было проверить верификацию.
 func (s *AuthService) RequestPasswordResetByPhone(ctx context.Context, phone string) error {
+	// 1) Находим пользователя по телефону
 	user, err := s.repo.GetUserByPhone(ctx, phone)
 	if err != nil || user == nil {
-
-		return nil
+		return errors.New("пользователь с таким телефоном не найден")
 	}
 
+	// 2) Генерируем код и сохраняем в БД (upsert)
 	code := generate4DigitCode()
 	expiresAt := time.Now().Add(5 * time.Minute)
-
-	err = s.repo.CreatePasswordResetToken(ctx, int64(user.ID), code, expiresAt)
-	if err != nil {
+	if err := s.repo.UpsertPhoneVerificationToken(ctx, phone, code, expiresAt); err != nil {
 		return err
 	}
 
-	if user.Phone.Valid {
-		message := "Код для сброса пароля: " + code
-		_ = s.sms.SendSMS(user.Phone.String, message)
+	// 3) Отправляем SMS
+	if err := s.sms.SendSMS(phone, "Код для сброса пароля: "+code); err != nil {
+		return err
 	}
 
+	// 4) Помечаем телефон как «верифицированный для сброса» на 5 минут
+	s.markPhoneVerified(phone)
 	return nil
 }
 
+// VerifyPhoneCode — проверяет код из SMS (шаг 2) и удаляет его из БД
+func (s *AuthService) VerifyPhoneCode(ctx context.Context, phone, code string) error {
+	_, err := s.repo.GetPhoneVerificationToken(ctx, phone, code)
+	if err != nil {
+		return errors.New("invalid or expired code")
+	}
+	_ = s.repo.DeletePhoneVerificationToken(ctx, phone)
+	// пометка в кеше уже сделана в RequestPasswordResetByPhone
+	return nil
+}
 
-// Сброс пароля по токену
-func (s *AuthService) ResetPasswordByToken(ctx context.Context, token, newPassword string) error {
-	user, err := s.repo.GetUserByResetToken(ctx, token)
+// ResetPasswordByPhone — финальный шаг (шаг 3): сброс пароля после верификации
+func (s *AuthService) ResetPasswordByPhone(ctx context.Context, phone, newPassword string) error {
+	if !s.IsPhoneVerifiedForReset(ctx, phone) {
+		return errors.New("телефон не подтверждён для сброса пароля")
+	}
+	user, err := s.repo.GetUserByPhone(ctx, phone)
 	if err != nil || user == nil {
-		return ErrInvalidResetToken
+		return errors.New("пользователь не найден")
 	}
 	newHash, err := s.HashPassword(newPassword)
 	if err != nil {
 		return err
 	}
-	err = s.repo.ChangePasswordByPhone(ctx, user.Username, newHash)
-	if err != nil {
+	if err := s.repo.ChangePasswordByPhone(ctx, phone, newHash); err != nil {
 		return err
 	}
-	return s.repo.InvalidateResetToken(ctx, token)
-}
-
-func (s *AuthService) RequestPhoneVerification(ctx context.Context, phone string) error {
-    user, err := s.repo.GetUserByPhone(ctx, phone)
-    if err != nil || user == nil {
-        // Можно вернуть ошибку или вернуть nil без отправки кода (по безопасности)
-        return errors.New("Пользователь с таким телефоном не найден")
-    }
-
-    code := generate4DigitCode()
-    expiresAt := time.Now().Add(5 * time.Minute)
-
-    err = s.repo.UpsertPhoneVerificationToken(ctx, phone, code, expiresAt)
-    if err != nil {
-        return err
-    }
-
-    return s.sms.SendSMS(phone, "Ваш код подтверждения: "+code)
-}
-
-
-func (s *AuthService) VerifyPhoneCode(ctx context.Context, phone, code string) error {
-    _, err := s.repo.GetPhoneVerificationToken(ctx, phone, code)
-    if err != nil {
-        return errors.New("invalid or expired code")
-    }
-    // Удаляем токен из БД, чтобы нельзя было использовать повторно
-    _ = s.repo.DeletePhoneVerificationToken(ctx, phone)
-
-    // Добавляем телефон в список подтверждённых на короткое время
-    s.markPhoneVerified(phone)
-
-    return nil
+	// чистим метку верификации
+	s.ClearPhoneVerifiedForReset(ctx, phone)
+	return nil
 }

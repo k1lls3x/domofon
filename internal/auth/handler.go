@@ -1,12 +1,13 @@
 package auth
 
 import (
+	_"context"
 	"domofon/internal/db"
 	"encoding/json"
+	"errors"
 	"net/http"
-_"errors"
+
 	"github.com/jackc/pgx/v5/pgtype"
-_	"context"
 )
 
 type AuthHandler struct {
@@ -17,6 +18,7 @@ func NewAuthHandler(authService *AuthService) *AuthHandler {
 	return &AuthHandler{auth: authService}
 }
 
+// POST /auth/register
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -45,14 +47,26 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		LastName:     pgtype.Text{String: req.LastName, Valid: req.LastName != ""},
 	}
 
-	err = h.auth.Register(r.Context(), params)
-	if err != nil {
+	// вызов регистрационного потока с проверками
+	if err := h.auth.Register(r.Context(), params); err != nil {
+		// бизнес-ошибки возвращаем 400
+		if errors.Is(err, ErrPhoneTaken) || errors.Is(err, ErrUsernameTaken) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "Ошибка регистрации пользователя: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(http.StatusCreated)
 }
+var (
+  
+    ErrUsernameTaken      = errors.New("пользователь с таким username уже существует")
+    ErrPhoneTaken         = errors.New("пользователь с таким номером телефона уже существует")
+)
 
+// POST /auth/login
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -63,15 +77,18 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Требуется поле phone", http.StatusBadRequest)
 		return
 	}
+
 	user, ok := h.auth.AuthorizeByPhone(r.Context(), req.Phone, req.Password)
 	if !ok {
 		http.Error(w, "Неверный телефон или пароль", http.StatusUnauthorized)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
 
+// POST /auth/change-password
 func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	var req ChangePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -82,44 +99,61 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Требуется поле phone", http.StatusBadRequest)
 		return
 	}
-	err := h.auth.ChangePasswordByPhone(r.Context(), req.Phone, req.OldPassword, req.NewPassword)
-	if err != nil {
+
+	if err := h.auth.ChangePasswordByPhone(r.Context(), req.Phone, req.OldPassword, req.NewPassword); err != nil {
 		http.Error(w, "Ошибка смены пароля: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
+// POST /auth/request-registration-code
+func (h *AuthHandler) RequestRegistrationCode(w http.ResponseWriter, r *http.Request) {
+	var req RequestPhoneVerificationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Проверяем, что номер ещё не занят
+	taken, err := h.auth.IsPhoneTaken(r.Context(), req.Phone)
+	if err != nil {
+		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
+		return
+	}
+	if taken {
+		http.Error(w, "Аккаунт с этим номером уже существует", http.StatusBadRequest)
+		return
+	}
+
+	// Отправляем код регистрации
+	if err := h.auth.SendRegistrationCode(r.Context(), req.Phone); err != nil {
+		http.Error(w, "Не удалось отправить код", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// POST /auth/forgot-password
 func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	var req ForgotPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
 		return
 	}
-	_ = h.auth.RequestPasswordResetByPhone(r.Context(), req.Phone)
 
-	w.WriteHeader(http.StatusOK)
-}
-
-
-func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
-	var req ResetPasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
-		return
-	}
-
-	err := h.auth.ResetPasswordByPhone(r.Context(), req.Phone, req.NewPassword)
-	if err != nil {
-		http.Error(w, "Ошибка сброса пароля: "+err.Error(), http.StatusBadRequest)
+	// Отправляем код сброса, или 400 если номер не в базе
+	if err := h.auth.RequestPasswordResetByPhone(r.Context(), req.Phone); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
-
-
+// POST /auth/verify-phone
 func (h *AuthHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 	var req VerifyPhoneRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -130,28 +164,27 @@ func (h *AuthHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Требуются поля phone и code", http.StatusBadRequest)
 		return
 	}
-	err := h.auth.VerifyPhoneCode(r.Context(), req.Phone, req.Code)
-	if err != nil {
+
+	if err := h.auth.VerifyPhoneCode(r.Context(), req.Phone, req.Code); err != nil {
 		http.Error(w, "Неверный или истёкший код", http.StatusBadRequest)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
-
-func (h *AuthHandler) RequestPhoneVerification(w http.ResponseWriter, r *http.Request) {
-	var req RequestPhoneVerificationRequest
+// POST /auth/reset-password
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req ResetPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
 		return
 	}
-	if req.Phone == "" {
-		http.Error(w, "Требуется поле phone", http.StatusBadRequest)
+
+	if err := h.auth.ResetPasswordByPhone(r.Context(), req.Phone, req.NewPassword); err != nil {
+		http.Error(w, "Ошибка сброса пароля: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := h.auth.RequestPhoneVerification(r.Context(), req.Phone); err != nil {
-		http.Error(w, "Ошибка отправки кода: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+
 	w.WriteHeader(http.StatusOK)
 }

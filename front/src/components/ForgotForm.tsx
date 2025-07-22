@@ -3,14 +3,21 @@ import {
   View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ActivityIndicator
 } from 'react-native';
 import MaskInput from 'react-native-mask-input';
-import { requestPhoneVerification, verifyPhone, resetPasswordByPhone } from './rest';
-
+import {
+  requestPasswordResetCode,
+  verifyResetCode,
+  resetPasswordByPhone
+} from './rest';
 import { useTheme } from './Theme.Context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-const PHONE_MASK = ['+','7',' ', '(', /\d/,/\d/,/\d/,')',' ',/\d/,/\d/,/\d/,'-',/\d/,/\d/,'-',/\d/,/\d/];
+const PHONE_MASK = [
+  '+','7',' ', '(', /\d/,/\d/,/\d/,')',' ',
+  /\d/,/\d/,/\d/,'-',/\d/,/\d/,'-',/\d/,/\d/
+];
 
-const isLatin = (str: string) => /^[A-Za-z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]+$/.test(str);
+const isLatin = (str: string) =>
+  /^[A-Za-z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]+$/.test(str);
 
 const checkPassword = (password: string) => ({
   length: password.length >= 8,
@@ -23,10 +30,10 @@ const checkPassword = (password: string) => ({
 
 function formatErr(e: any, field?: string) {
   const msg = (typeof e === 'string' ? e : (e?.message || '')).toLowerCase();
-  if (field === 'phone' && (msg.includes('phone') || msg.includes('номер'))) return 'Данный телефон не зарегистрирован';
-  if (field === 'code' && (msg.includes('код') || msg.includes('code') || msg.includes('not valid') || msg.includes('incorrect'))) return 'Неверный код';
-  if (msg.includes('phone') || msg.includes('номер')) return 'Данный телефон не зарегистрирован';
-  if (msg.includes('код') || msg.includes('code') || msg.includes('not valid') || msg.includes('incorrect')) return 'Неверный код';
+  if (field === 'phone' && (msg.includes('phone') || msg.includes('номер')))
+    return 'Данный телефон не зарегистрирован';
+  if (field === 'code' && (msg.includes('код') || msg.includes('code')))
+    return 'Неверный код';
   return e?.message || 'Ошибка';
 }
 
@@ -46,71 +53,82 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
   const pass = checkPassword(newPass);
 
   const handleForgot = async () => {
-  setErr('');
-  if (digits.length !== 11) {
-    setErr('Введите корректный номер');
-    return;
-  }
-  setLoading(true);
-  try {
-    await requestPhoneVerification(digits);
-    setStep(1);
-    setCode('');
-    Alert.alert('Код отправлен', 'Введите код из SMS');
-  } catch (e: any) {
-    setErr(formatErr(e, 'phone'));
-  } finally {
-    setLoading(false);
-  }
-};
+    setErr('');
+    if (digits.length !== 11) {
+      setErr('Введите корректный номер');
+      return;
+    }
+    setLoading(true);
+    try {
+      await requestPasswordResetCode(digits);
+      setStep(1);
+      setCode('');
+      Alert.alert('Код отправлен', 'Введите код из SMS');
+    } catch (e: any) {
+      setErr(formatErr(e, 'phone'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
- const handleVerifyCode = async () => {
-  setErr('');
-  if (code.length !== 4) {
-    setErr('Введите код из 4 цифр');
-    return;
-  }
-  setLoading(true);
-  try {
-    await verifyPhone(digits, code);
-    setStep(2);
-    setNewPass('');
-    Alert.alert('Код подтверждён', 'Введите новый пароль');
-  } catch (e: any) {
-    setErr(formatErr(e, 'code'));
-  } finally {
-    setLoading(false);
-  }
-};
+  const handleVerifyCode = async () => {
+    setErr('');
+    if (code.length !== 4) {
+      setErr('Введите код из 4 цифр');
+      return;
+    }
+    setLoading(true);
+    try {
+      await verifyResetCode(digits, code);
+      setStep(2);
+      setNewPass('');
+      Alert.alert('Код подтверждён', 'Введите новый пароль');
+    } catch (e: any) {
+      setErr(formatErr(e, 'code'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleResetPassword = async () => {
-  setErr('');
-  if (newPass.length < 6 || !/[A-Za-z]/.test(newPass) || !/\d/.test(newPass)) {
-    setErr('Пароль должен быть минимум 6 символов, содержать буквы и цифры');
-    return;
-  }
-  setLoading(true);
-  try {
-    await resetPasswordByPhone(digits, newPass);
-    Alert.alert('Готово', 'Пароль успешно изменён!', [{ text: 'Войти', onPress: onLogin }]);
-  } catch (e: any) {
-    setErr(formatErr(e));
-  } finally {
-    setLoading(false);
-  }
-};
-
+    setErr('');
+    if (
+      newPass.length < 6 ||
+      !/[A-Za-z]/.test(newPass) ||
+      !/\d/.test(newPass)
+    ) {
+      setErr('Пароль должен быть минимум 6 символов, содержать буквы и цифры');
+      return;
+    }
+    setLoading(true);
+    try {
+      await resetPasswordByPhone(digits, newPass);
+      Alert.alert('Готово', 'Пароль успешно изменён!', [
+        { text: 'Войти', onPress: onLogin }
+      ]);
+    } catch (e: any) {
+      setErr(formatErr(e));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={[styles.form, { backgroundColor: theme.card }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Восстановление пароля</Text>
+      <Text style={[styles.title, { color: theme.text }]}>
+        Восстановление пароля
+      </Text>
 
       {step === 0 && (
         <>
           <MaskInput
             style={[
               styles.input,
-              { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
+              {
+                backgroundColor: theme.inputBg,
+                borderColor: theme.inputBorder,
+                color: theme.text
+              }
             ]}
             placeholder="Телефон"
             value={phone}
@@ -119,25 +137,31 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
             keyboardType="phone-pad"
             placeholderTextColor={theme.subtext}
           />
-          {err.length > 0 && (
-            <Text style={{ color: '#e43a4b', marginTop: 8 }}>{err}</Text>
-          )}
+          {err ? <Text style={styles.error}>{err}</Text> : null}
           <TouchableOpacity
             style={[
               styles.btn,
-              digits.length !== 11 ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
+              digits.length !== 11
+                ? { backgroundColor: theme.btnDisabled }
+                : { backgroundColor: theme.btn }
             ]}
             onPress={handleForgot}
             disabled={loading || digits.length !== 11}
-            activeOpacity={digits.length === 11 ? 0.8 : 1}
           >
-            {loading
-              ? <ActivityIndicator color={theme.btnText} />
-              : <Text style={[
+            {loading ? (
+              <ActivityIndicator color={theme.btnText} />
+            ) : (
+              <Text
+                style={[
                   styles.btnText,
-                  digits.length !== 11 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
-                ]}>Восстановить</Text>
-            }
+                  digits.length !== 11
+                    ? { color: theme.btnTextDisabled }
+                    : { color: theme.btnText }
+                ]}
+              >
+                Восстановить
+              </Text>
+            )}
           </TouchableOpacity>
         </>
       )}
@@ -147,7 +171,11 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
           <TextInput
             style={[
               styles.input,
-              { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
+              {
+                backgroundColor: theme.inputBg,
+                borderColor: theme.inputBorder,
+                color: theme.text
+              }
             ]}
             placeholder="Код из SMS"
             value={code}
@@ -156,25 +184,31 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
             maxLength={4}
             placeholderTextColor={theme.subtext}
           />
-          {err.length > 0 && (
-            <Text style={{ color: '#e43a4b', marginTop: 8 }}>{err}</Text>
-          )}
+          {err ? <Text style={styles.error}>{err}</Text> : null}
           <TouchableOpacity
             style={[
               styles.btn,
-              code.length !== 4 ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
+              code.length !== 4
+                ? { backgroundColor: theme.btnDisabled }
+                : { backgroundColor: theme.btn }
             ]}
             onPress={handleVerifyCode}
             disabled={loading || code.length !== 4}
-            activeOpacity={code.length === 4 ? 0.8 : 1}
           >
-            {loading
-              ? <ActivityIndicator color={theme.btnText} />
-              : <Text style={[
+            {loading ? (
+              <ActivityIndicator color={theme.btnText} />
+            ) : (
+              <Text
+                style={[
                   styles.btnText,
-                  code.length !== 4 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
-                ]}>Проверить код</Text>
-            }
+                  code.length !== 4
+                    ? { color: theme.btnTextDisabled }
+                    : { color: theme.btnText }
+                ]}
+              >
+                Проверить код
+              </Text>
+            )}
           </TouchableOpacity>
         </>
       )}
@@ -185,7 +219,12 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
             <TextInput
               style={[
                 styles.input,
-                { flex: 1, backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
+                {
+                  flex: 1,
+                  backgroundColor: theme.inputBg,
+                  borderColor: theme.inputBorder,
+                  color: theme.text
+                }
               ]}
               placeholder="Новый пароль"
               value={newPass}
@@ -193,63 +232,74 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
               secureTextEntry={hide}
               placeholderTextColor={theme.subtext}
             />
-            <TouchableOpacity style={styles.eye} onPress={() => setHide(h => !h)}>
-              <MaterialCommunityIcons name={hide ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
+            <TouchableOpacity
+              style={styles.eye}
+              onPress={() => setHide(h => !h)}
+            >
+              <MaterialCommunityIcons
+                name={hide ? 'eye-off-outline' : 'eye-outline'}
+                size={22}
+                color={theme.icon}
+              />
             </TouchableOpacity>
           </View>
-          <View style={{marginBottom: 8, marginTop: 2}}>
+          <View style={{ marginBottom: 8, marginTop: 2 }}>
             <PasswordRule ok={pass.length} label="Не менее 8 символов" />
             <PasswordRule ok={pass.upper} label="Есть заглавная буква" />
             <PasswordRule ok={pass.lower} label="Есть строчная буква" />
             <PasswordRule ok={pass.digit} label="Есть цифра" />
             <PasswordRule ok={pass.symbol} label="Есть спецсимвол" />
           </View>
-          {err.length > 0 && (
-            <Text style={{ color: '#e43a4b', marginTop: 8 }}>{err}</Text>
-          )}
+          {err ? <Text style={styles.error}>{err}</Text> : null}
           <TouchableOpacity
             style={[
               styles.btn,
-              !pass.length || !pass.latin || !pass.upper || !pass.lower || !pass.digit || !pass.symbol
+              !pass.length ||
+              !pass.latin ||
+              !pass.upper ||
+              !pass.lower ||
+              !pass.digit ||
+              !pass.symbol
                 ? { backgroundColor: theme.btnDisabled }
                 : { backgroundColor: theme.btn }
             ]}
             onPress={handleResetPassword}
-            disabled={loading || !pass.length || !pass.latin || !pass.upper || !pass.lower || !pass.digit || !pass.symbol}
-            activeOpacity={pass.length && pass.latin && pass.upper && pass.lower && pass.digit && pass.symbol ? 0.8 : 1}
+            disabled={loading || !pass.length || !pass.latin}
           >
-            {loading
-              ? <ActivityIndicator color={theme.btnText} />
-              : <Text style={[
+            {loading ? (
+              <ActivityIndicator color={theme.btnText} />
+            ) : (
+              <Text
+                style={[
                   styles.btnText,
-                  !pass.length || !pass.latin || !pass.upper || !pass.lower || !pass.digit || !pass.symbol
+                  !pass.length
                     ? { color: theme.btnTextDisabled }
                     : { color: theme.btnText }
-                ]}>Сменить пароль</Text>
-            }
+                ]}
+              >
+                Сменить пароль
+              </Text>
+            )}
           </TouchableOpacity>
         </>
-      )}
-
-      {step > 0 && (
-        <TouchableOpacity
-          onPress={() => {
-            setErr('');
-            setStep((s) => (s - 1) as typeof step);
-          }}
-          style={styles.back}
-        >
-          <Text style={[styles.link, { color: theme.icon }]}>Назад</Text>
-        </TouchableOpacity>
       )}
     </View>
   );
 };
 
-const PasswordRule: React.FC<{ ok: boolean; label: string }> = ({ ok, label }) => (
-  <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 2}}>
-    <MaterialCommunityIcons name={ok ? "check-circle-outline" : "close-circle-outline"} size={17} color={ok ? "#41d67a" : "#e43a4b"} />
-    <Text style={{color: ok ? "#41d67a" : "#e43a4b", marginLeft: 5, fontSize: 14}}>{label}</Text>
+const PasswordRule: React.FC<{ ok: boolean; label: string }> = ({
+  ok,
+  label
+}) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+    <MaterialCommunityIcons
+      name={ok ? 'check-circle-outline' : 'close-circle-outline'}
+      size={17}
+      color={ok ? '#41d67a' : '#e43a4b'}
+    />
+    <Text style={{ color: ok ? '#41d67a' : '#e43a4b', marginLeft: 5, fontSize: 14 }}>
+      {label}
+    </Text>
   </View>
 );
 
@@ -259,7 +309,7 @@ const styles = StyleSheet.create({
     padding: 22,
     maxWidth: 400,
     width: '100%',
-    alignSelf: 'center',
+    alignSelf: 'center'
   },
   title: { fontSize: 28, fontWeight: '900', textAlign: 'center', marginBottom: 20 },
   input: {
@@ -276,13 +326,12 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     alignItems: 'center',
     marginTop: 8,
-    marginBottom: 8,
+    marginBottom: 8
   },
   btnText: { fontWeight: '900', fontSize: 18, letterSpacing: 0.05 },
   inputWrap: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   eye: { position: 'absolute', right: 10, top: 0, bottom: 0, justifyContent: 'center', height: '100%' },
-  back: { marginTop: 0, alignSelf: 'center' },
-  link: { fontWeight: '700', fontSize: 15.5 },
+  error: { color: '#e43a4b', marginTop: 8 },
 });
 
 export default ForgotForm;

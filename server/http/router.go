@@ -22,20 +22,34 @@ func NewRouter(pool *pgxpool.Pool) *mux.Router {
 	r := mux.NewRouter()
 
 	// Пользовательские роуты
-	r.HandleFunc("/users", userHandler.GetUsers).Methods("GET")
-	r.HandleFunc("/users", userHandler.CreateUser).Methods("POST")
-	r.HandleFunc("/users/{id}", userHandler.UpdateUser).Methods("PUT")
-	r.HandleFunc("/users/{id}", userHandler.DeleteUser).Methods("DELETE")
+// --- Пользовательские роуты ---
+r.HandleFunc("/users",            userHandler.GetUsers).Methods("GET")
+r.HandleFunc("/users",            userHandler.CreateUser).Methods("POST")
+r.HandleFunc("/users/{id}",       userHandler.UpdateUser).Methods("PUT")
+r.HandleFunc("/users/{id}",       userHandler.DeleteUser).Methods("DELETE")
 
-	// Роуты авторизации
-	r.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
-	r.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
-	r.HandleFunc("/auth/change-password", authHandler.ChangePassword).Methods("POST")
+// --- Роуты авторизации ---
+// Регистрация (трёхшагово):
+// 1) Получить код на свободный номер
+r.HandleFunc("/auth/request-registration-code", authHandler.RequestRegistrationCode).Methods("POST")
+// 2) Проверить код
+r.HandleFunc("/auth/verify-phone",               authHandler.VerifyPhone).Methods("POST")
+// 3) Создать учётку
+r.HandleFunc("/auth/register",                   authHandler.Register).Methods("POST")
 
-	r.HandleFunc("/auth/forgot-password", authHandler.ForgotPassword).Methods("POST")
-	r.HandleFunc("/auth/reset-password", authHandler.ResetPassword).Methods("POST")
-	r.HandleFunc("/auth/request-phone-verification", authHandler.RequestPhoneVerification).Methods("POST")
-	r.HandleFunc("/auth/verify-phone", authHandler.VerifyPhone).Methods("POST")
+// Логин
+r.HandleFunc("/auth/login",                      authHandler.Login).Methods("POST")
+
+// Смена пароля внутри профиля
+r.HandleFunc("/auth/change-password",            authHandler.ChangePassword).Methods("POST")
+
+// Сброс пароля (трёхшагово):
+// 1) Получить код на существующий номер
+r.HandleFunc("/auth/forgot-password",            authHandler.ForgotPassword).Methods("POST")
+// 2) Проверить код (тот же VerifyPhone)
+ // уже объявлен выше
+// 3) Сбросить пароль
+r.HandleFunc("/auth/reset-password",             authHandler.ResetPassword).Methods("POST")
 
 	return r
 }
