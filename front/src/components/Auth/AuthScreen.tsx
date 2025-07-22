@@ -63,6 +63,7 @@ export const AuthScreen: React.FC = () => {
   );
 };
 
+
 const styles = StyleSheet.create({
   center: {
     flex: 1,
@@ -100,8 +101,8 @@ const styles = StyleSheet.create({
   },
   themeSwitcherWrap: {
     position: 'absolute',
-    right: 8,
-    bottom: 8,
+    right: 18,
+    bottom: 18,
     zIndex: 20,
   },
 });

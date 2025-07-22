@@ -3,6 +3,7 @@ import { Animated, TouchableOpacity, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from './Theme.Context';
 
+
 export const ThemeSwitcher: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const animatedValue = useRef(new Animated.Value(theme.mode === 'light' ? 0 : 1)).current;
@@ -43,8 +44,8 @@ export const ThemeSwitcher: React.FC = () => {
 const switcherStyles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    right: 18,
-    bottom: 28,
+    right: 28,
+    bottom: 40,
     borderRadius: 24,
     width: 62,
     height: 44,
