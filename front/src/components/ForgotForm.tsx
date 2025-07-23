@@ -3,15 +3,15 @@ import {
   View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ActivityIndicator
 } from 'react-native';
 import MaskInput from 'react-native-mask-input';
-
 import { useTheme } from './Theme.Context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+
 import {
   requestPasswordResetCode,
   verifyResetCode,
   resetPasswordByPhone
 } from './rest';
-
 
 const PHONE_MASK = [
   '+','7',' ', '(', /\d/,/\d/,/\d/,')',' ',
@@ -61,7 +61,7 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
   useEffect(() => {
     if (step === 1) {
       setSecondsLeft(300); // 5 минут
-      timerRef.current && clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setSecondsLeft(s => {
           if (s <= 1) {
@@ -80,7 +80,6 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
     const s = secondsLeft % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
-  // -----------
 
   const handleForgot = async () => {
     setErr('');
@@ -93,7 +92,7 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
       await requestPasswordResetCode(digits);
       setStep(1);
       setCode('');
-      Alert.alert('Код отправлен', 'Введите код из SMS');
+      // Не показываем Alert!
     } catch (e: any) {
       setErr(formatErr(e, 'phone'));
     } finally {
@@ -147,61 +146,76 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
   };
 
   return (
-    <View style={[styles.form, { backgroundColor: theme.card }]}>
-      <Text style={[styles.title, { color: theme.text }]}>
-        Восстановление пароля
-      </Text>
+    <View style={styles.outer}>
+      <View style={styles.avatarWrap}>
+        <MaterialCommunityIcons name="lock-outline" size={54} color="#ddd" />
+      </View>
+      <Text style={styles.sysTitle}>Восстановление пароля</Text>
+      <Text style={styles.sysWelcome}>Введите номер телефона</Text>
 
+      {/* Шаг 0 — ввод телефона */}
       {step === 0 && (
         <>
-          <MaskInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.inputBg,
-                borderColor: theme.inputBorder,
-                color: theme.text
-              }
-            ]}
-            placeholder="Телефон"
-            value={phone}
-            onChangeText={setPhone}
-            mask={PHONE_MASK}
-            keyboardType="phone-pad"
-            placeholderTextColor={theme.subtext}
-          />
+          <View style={styles.inputWrapper}>
+            <MaterialCommunityIcons
+              name="phone-outline"
+              size={22}
+              color="#b4bac3"
+              style={styles.inputIcon}
+            />
+            <MaskInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.inputBg,
+                  borderColor: theme.inputBorder,
+                  color: theme.text,
+                  paddingLeft: 46,
+                }
+              ]}
+              placeholder="Телефон"
+              value={phone}
+              onChangeText={setPhone}
+              mask={PHONE_MASK}
+              keyboardType="phone-pad"
+              placeholderTextColor={theme.subtext}
+            />
+          </View>
           {err ? <Text style={styles.error}>{err}</Text> : null}
           <TouchableOpacity
-            style={[
-              styles.btn,
-              digits.length !== 11
-                ? { backgroundColor: theme.btnDisabled }
-                : { backgroundColor: theme.btn }
-            ]}
+            style={[styles.btn, digits.length !== 11 ? { opacity: 0.7 } : {}]}
             onPress={handleForgot}
             disabled={loading || digits.length !== 11}
+            activeOpacity={digits.length === 11 ? 0.8 : 1}
           >
-            {loading ? (
-              <ActivityIndicator color={theme.btnText} />
-            ) : (
-              <Text
-                style={[
-                  styles.btnText,
-                  digits.length !== 11
-                    ? { color: theme.btnTextDisabled }
-                    : { color: theme.btnText }
-                ]}
-              >
-                Восстановить
-              </Text>
-            )}
+            <LinearGradient
+              colors={['#2585f4', '#1b2b64']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={styles.btnBg}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.btnText}>Восстановить</Text>
+              }
+            </LinearGradient>
           </TouchableOpacity>
         </>
       )}
 
+      {/* Шаг 1 — ввод кода */}
       {step === 1 && (
         <>
-          <Text style={{ textAlign: 'center', color: theme.subtext, marginBottom: 6 }}>
+          <Text
+            style={{
+              textAlign: 'left',
+              color: theme.subtext,
+              marginBottom: 6,
+              fontSize: 14,
+              fontWeight: '500',
+              alignSelf: 'flex-start',
+              marginLeft: 16,
+            }}
+          >
             Время на ввод кода: {formatTimer()}
           </Text>
           <TextInput
@@ -210,7 +224,7 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
               {
                 backgroundColor: theme.inputBg,
                 borderColor: theme.inputBorder,
-                color: theme.text
+                color: theme.text,
               }
             ]}
             placeholder="Код из SMS"
@@ -222,36 +236,29 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
           />
           {err ? <Text style={styles.error}>{err}</Text> : null}
           <TouchableOpacity
-            style={[
-              styles.btn,
-              code.length !== 4 || secondsLeft === 0
-                ? { backgroundColor: theme.btnDisabled }
-                : { backgroundColor: theme.btn }
-            ]}
+            style={[styles.btn, code.length !== 4 || secondsLeft === 0 ? { opacity: 0.7 } : {}]}
             onPress={handleVerifyCode}
             disabled={loading || code.length !== 4 || secondsLeft === 0}
+            activeOpacity={code.length === 4 && secondsLeft > 0 ? 0.8 : 1}
           >
-            {loading ? (
-              <ActivityIndicator color={theme.btnText} />
-            ) : (
-              <Text
-                style={[
-                  styles.btnText,
-                  code.length !== 4 || secondsLeft === 0
-                    ? { color: theme.btnTextDisabled }
-                    : { color: theme.btnText }
-                ]}
-              >
-                Проверить код
-              </Text>
-            )}
+            <LinearGradient
+              colors={['#2585f4', '#1b2b64']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={styles.btnBg}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.btnText}>Проверить код</Text>
+              }
+            </LinearGradient>
           </TouchableOpacity>
         </>
       )}
 
+      {/* Шаг 2 — новый пароль */}
       {step === 2 && (
         <>
-          <View style={styles.inputWrap}>
+          <View style={styles.inputWrapper}>
             <TextInput
               style={[
                 styles.input,
@@ -279,7 +286,7 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
               />
             </TouchableOpacity>
           </View>
-          <View style={{ marginBottom: 8, marginTop: 2 }}>
+          <View style={{ marginBottom: 10, marginTop: 2, width: '100%' }}>
             <PasswordRule ok={pass.length} label="Не менее 8 символов" />
             <PasswordRule ok={pass.upper} label="Есть заглавная буква" />
             <PasswordRule ok={pass.lower} label="Есть строчная буква" />
@@ -288,37 +295,26 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
           </View>
           {err ? <Text style={styles.error}>{err}</Text> : null}
           <TouchableOpacity
-            style={[
-              styles.btn,
-              !pass.length ||
-              !pass.latin ||
-              !pass.upper ||
-              !pass.lower ||
-              !pass.digit ||
-              !pass.symbol
-                ? { backgroundColor: theme.btnDisabled }
-                : { backgroundColor: theme.btn }
-            ]}
+            style={[styles.btn, !pass.length || !pass.latin || !pass.upper || !pass.lower || !pass.digit || !pass.symbol ? { opacity: 0.7 } : {}]}
             onPress={handleResetPassword}
             disabled={loading || !pass.length || !pass.latin}
+            activeOpacity={pass.length && pass.latin && pass.upper && pass.lower && pass.digit && pass.symbol ? 0.8 : 1}
           >
-            {loading ? (
-              <ActivityIndicator color={theme.btnText} />
-            ) : (
-              <Text
-                style={[
-                  styles.btnText,
-                  !pass.length
-                    ? { color: theme.btnTextDisabled }
-                    : { color: theme.btnText }
-                ]}
-              >
-                Сменить пароль
-              </Text>
-            )}
+            <LinearGradient
+              colors={['#2585f4', '#1b2b64']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={styles.btnBg}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.btnText}>Сменить пароль</Text>
+              }
+            </LinearGradient>
           </TouchableOpacity>
         </>
       )}
+
+      <Text style={styles.footer}>© 2025 Домофон</Text>
     </View>
   );
 };
@@ -327,7 +323,7 @@ const PasswordRule: React.FC<{ ok: boolean; label: string }> = ({
   ok,
   label
 }) => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2, width: '100%' }}>
     <MaterialCommunityIcons
       name={ok ? 'check-circle-outline' : 'close-circle-outline'}
       size={17}
@@ -340,34 +336,89 @@ const PasswordRule: React.FC<{ ok: boolean; label: string }> = ({
 );
 
 const styles = StyleSheet.create({
-  form: {
-    borderRadius: 18,
-    padding: 22,
-    maxWidth: 400,
+  outer: {
+    backgroundColor: "#fff",
+    borderRadius: 26,
+    padding: 28,
     width: '100%',
-    alignSelf: 'center'
-  },
-  title: { fontSize: 28, fontWeight: '900', textAlign: 'center', marginBottom: 20 },
-  input: {
-    height: 50,
-    borderRadius: 13,
-    borderWidth: 1.5,
-    paddingHorizontal: 18,
-    fontSize: 16.5,
-    marginBottom: 12,
-    fontWeight: '600'
-  },
-  btn: {
-    borderRadius: 13,
-    paddingVertical: 15,
+    alignSelf: 'center',
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8
+    shadowColor: '#23254b',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.11,
+    shadowRadius: 24,
+    elevation: 9,
+    marginTop: 0,
   },
-  btnText: { fontWeight: '900', fontSize: 18, letterSpacing: 0.05 },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  eye: { position: 'absolute', right: 10, top: 0, bottom: 0, justifyContent: 'center', height: '100%' },
-  error: { color: '#e43a4b', marginTop: 8 },
+  avatarWrap: {
+    marginTop: 2,
+    marginBottom: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sysTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 4,
+    color: '#2d2d2d',
+    letterSpacing: 0.01,
+  },
+  sysWelcome: {
+    fontSize: 14,
+    color: '#bcc3cf',
+    marginBottom: 12,
+    textAlign: 'left',
+    fontWeight: '500',
+    alignSelf: 'flex-start',
+    marginLeft: 16,
+  },
+  input: {
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1.2,
+    paddingHorizontal: 16,
+    fontSize: 16.5,
+    marginBottom: 11,
+    fontWeight: '500',
+    width: '100%',
+  },
+  inputWrapper: { position: 'relative', marginBottom: 11, width: '100%', justifyContent: 'center' },
+  inputIcon: { position: 'absolute', left: 16, top: 13, zIndex: 2 },
+  eye: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', height: '100%' },
+  btn: {
+    width: '100%',
+    borderRadius: 11,
+    overflow: 'hidden',
+    marginTop: 7,
+    marginBottom: 7,
+    height: 48,
+    justifyContent: 'center',
+  },
+  btnBg: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 11,
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+  },
+  btnText: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    color: '#fff',
+    letterSpacing: 0.04,
+    zIndex: 1,
+  },
+  error: { fontSize: 13, marginLeft: 4, marginBottom: 6, fontWeight: '600', color: '#e43a4b', alignSelf: 'flex-start' },
+  footer: {
+    marginTop: 22,
+    alignSelf: 'center',
+    fontSize: 13,
+    color: '#bcc3cf',
+  },
 });
 
 export default ForgotForm;

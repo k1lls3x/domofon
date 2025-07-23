@@ -36,18 +36,26 @@ export const AuthScreen: React.FC = () => {
   };
 
   let Content: React.ReactNode;
-  if (mode === 'login') Content = (
-    <LoginForm
-      onRegister={() => switchMode('register')}
-      onForgot={() => switchMode('forgot')}
-    />
-  );
-  
-  else Content = (
-    <ForgotForm
+  if (mode === 'login') {
+    Content = (
+      <LoginForm
+        onRegister={() => switchMode('register')}
+        onForgot={() => switchMode('forgot')}
+      />
+    );
+  } else if (mode === 'register') {
+  Content = (
+    <RegisterForm
       onLogin={() => switchMode('login')}
     />
   );
+} else {
+    Content = (
+      <ForgotForm
+        onLogin={() => switchMode('login')}
+      />
+    );
+  }
 
   const showBack = mode === 'register' || mode === 'forgot';
 
