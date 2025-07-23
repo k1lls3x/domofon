@@ -64,35 +64,34 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
 
   const pass = checkPassword(password);
 
-  // --- Таймер повторного запроса кода ---
+  // Таймер повторного запроса кода
   const [codeTimeout, setCodeTimeout] = useState(RESEND_TIMEOUT);
   const codeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-  if (step === 1) {
-    setCodeTimeout(RESEND_TIMEOUT);
-    if (codeTimerRef.current) clearInterval(codeTimerRef.current);
-    codeTimerRef.current = setInterval(() => {
-      setCodeTimeout((prev) => {
-        if (prev <= 1) {
-          if (codeTimerRef.current) clearInterval(codeTimerRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }
-  return () => {
-    if (codeTimerRef.current) clearInterval(codeTimerRef.current);
-  };
-}, [step]);
-
+    if (step === 1) {
+      setCodeTimeout(RESEND_TIMEOUT);
+      if (codeTimerRef.current) clearInterval(codeTimerRef.current);
+      codeTimerRef.current = setInterval(() => {
+        setCodeTimeout((prev) => {
+          if (prev <= 1) {
+            if (codeTimerRef.current) clearInterval(codeTimerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (codeTimerRef.current) clearInterval(codeTimerRef.current);
+    };
+  }, [step]);
 
   const resendTimeoutText = codeTimeout > 0
     ? `Запросить код повторно (${codeTimeout < 10 ? '0' : ''}${codeTimeout})`
     : 'Запросить код повторно';
 
-  // Шаг 0: отправка телефона
+  // Отправка телефона (шаг 0)
   const onSendPhone = async () => {
     setErr('');
     if (digits.length !== 11) {
@@ -112,7 +111,7 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
     }
   };
 
-  // Шаг 1: подтверждение кода
+  // Подтверждение кода (шаг 1)
   const onCheckCode = async () => {
     setErr('');
     if (code.length !== 4) {
@@ -136,8 +135,8 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
     setLoading(true);
     try {
       await requestRegistrationCode(digits);
-      setCode(''); // убиваем старый код
-      setCodeTimeout(RESEND_TIMEOUT); // опять ждём 60 сек
+      setCode('');
+      setCodeTimeout(RESEND_TIMEOUT);
       codeTimerRef.current && clearInterval(codeTimerRef.current);
       codeTimerRef.current = setInterval(() => {
         setCodeTimeout((prev) => {
@@ -156,7 +155,7 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
     }
   };
 
-  // Шаг 3: регистрация
+  // Регистрация (шаг 3)
   const onRegister = async () => {
     setErr('');
     setUserErr('');
@@ -201,8 +200,6 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
 
   return (
     <View style={[styles.form, { backgroundColor: theme.card }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Регистрация</Text>
-
       {step === 0 && (
         <>
           <MaskInput
@@ -464,8 +461,8 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     width: '100%',
     alignSelf: 'center',
+    marginTop: 0,
   },
-  title: { fontSize: 28, fontWeight: '900', textAlign: 'center', marginBottom: 20 },
   input: {
     height: 50,
     borderRadius: 13,

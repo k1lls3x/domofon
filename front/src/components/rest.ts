@@ -22,6 +22,36 @@ export function getUsers(): Promise<User[]> {
     });
 }
 
+// --- Проверка email на уникальность ---
+export async function checkEmail(email: string): Promise<boolean> {
+  const res = await fetch(`${BASE_URL}/auth/check-email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  let data: any = {};
+  let text: string = '';
+  try {
+    text = await res.text();
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = {};
+  }
+
+  if (res.status === 409 || res.status === 400) {
+    return true; // E-mail уже занят
+  }
+  if (res.ok) return false; // E-mail свободен
+
+  // Всё остальное — ошибка
+  const message =
+    (typeof data === 'object' && data && data.message) ? data.message :
+    text ? text :
+    `Ошибка ${res.status}`;
+  throw new Error(message);
+}
+
 // --- Основная функция запроса с обработкой ошибок ---
 async function request<T>(path: string, body: any): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -31,13 +61,22 @@ async function request<T>(path: string, body: any): Promise<T> {
   });
 
   let data: any = {};
-  try { data = await res.json(); } catch {}
+  let text: string = '';
+  try {
+    text = await res.text();
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = {};
+  }
 
   if (!res.ok) {
-    // Всегда используем message с бэка, если есть, иначе дефолтное
-    const error: any = new Error(data.message || `Ошибка ${res.status}`);
+    const message =
+      (typeof data === 'object' && data && data.message) ? data.message :
+      text ? text :
+      `Ошибка ${res.status}`;
+    const error: any = new Error(message);
     error.status = res.status;
-    error.serverMessage = data.message;
+    error.serverMessage = message;
     error.body = data;
     throw error;
   }
@@ -82,10 +121,7 @@ export function resetPasswordByPhone(
   return request<AuthResponse>('/auth/reset-password', { phone, newPassword });
 }
 
-
 // --- Функция для UI: просто возвращает message с бэка или fallback ---
 export function mapError(error: any): string {
-  // Показываем сообщение только с бэка, если оно есть
   return error?.serverMessage || error?.message || 'Произошла неизвестная ошибка';
 }
-

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   SafeAreaView, View, StyleSheet, KeyboardAvoidingView,
-  TouchableWithoutFeedback, Keyboard, Animated, Easing, Platform, TouchableOpacity
+  TouchableWithoutFeedback, Keyboard, Animated, Easing, Platform, TouchableOpacity, Text
 } from 'react-native';
 import { LoginForm } from '../LoginForm';
 import { RegisterForm } from '../RegisterForm';
@@ -26,83 +26,115 @@ export const AuthScreen: React.FC = () => {
   };
 
   let Content: React.ReactNode;
-  if (mode === 'login') Content = <LoginForm onRegister={() => switchMode('register')} onForgot={() => switchMode('forgot')} />;
-  else if (mode === 'register') Content = <RegisterForm onLogin={() => switchMode('login')} />;
-  else Content = <ForgotForm onLogin={() => switchMode('login')} />;
+  if (mode === 'login') Content = (
+    <LoginForm
+      onRegister={() => switchMode('register')}
+      onForgot={() => switchMode('forgot')}
+    />
+  );
+  else if (mode === 'register') Content = (
+    <RegisterForm
+      onLogin={() => switchMode('login')}
+    />
+  );
+  else Content = (
+    <ForgotForm
+      onLogin={() => switchMode('login')}
+    />
+  );
+
+  // Показывать стрелку "Назад" только на регистрации и восстановлении
+  const showBack = mode === 'register' || mode === 'forgot';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <View style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={60}
-        >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.center}>
-              {(mode === 'register' || mode === 'forgot') && (
-                <TouchableOpacity style={styles.backRow} onPress={() => switchMode('login')} activeOpacity={0.7}>
-                  <MaterialCommunityIcons name="arrow-left" size={26} color={theme.icon} />
-                  <Animated.Text style={[styles.backTxt, { color: theme.icon }]}>Назад</Animated.Text>
-                </TouchableOpacity>
-              )}
-              <View style={styles.innerWrap}>
-                <Animated.View style={styles.formWrap} pointerEvents="box-none">
-                  {Content}
-                </Animated.View>
-              </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </KeyboardAvoidingView>
-        {/* ThemeSwitcher вне KeyboardAvoidingView */}
-        <View style={styles.themeSwitcherWrap} pointerEvents="box-none">
-          <ThemeSwitcher />
-        </View>
+      {/* Шапка */}
+      <View style={styles.header}>
+        {showBack ? (
+          <TouchableOpacity style={styles.backBtn} onPress={() => switchMode('login')} activeOpacity={0.7}>
+            <MaterialCommunityIcons name="arrow-left" size={28} color={theme.icon} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.backBtnPlaceholder} />
+        )}
+        <View style={{ flex: 1 }} />
+      </View>
+      {/* ThemeSwitcher — чуть ниже шапки, фиксировано */}
+      <View style={styles.themeSwitcherWrap}>
+        <ThemeSwitcher />
+      </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={60}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.center}>
+            <Animated.View style={[styles.formWrap, { opacity: fade }]}>
+              {Content}
+            </Animated.View>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+      {/* Копирайт внизу */}
+      <View style={styles.copyrightWrap}>
+        <Text style={styles.copyright}>© 2025 Домофон</Text>
       </View>
     </SafeAreaView>
   );
 };
 
-
 const styles = StyleSheet.create({
+  header: {
+    width: '100%',
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    borderBottomWidth: 0,
+    backgroundColor: 'transparent',
+    marginBottom: 6,
+  },
+  backBtn: {
+    width: 46,
+    height: 46,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    borderRadius: 23,
+    marginLeft: -8,
+  },
+  backBtnPlaceholder: {
+    width: 46,
+    height: 46,
+  },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
   },
-  innerWrap: {
-    width: '100%',
-    maxWidth: 400,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   formWrap: {
-    width: '100%',
+    width: '90%',
     maxWidth: 400,
     alignItems: 'stretch',
     justifyContent: 'center',
   },
-  backRow: {
-    position: 'absolute',
-    left: 0,
-    top: Platform.OS === 'ios' ? 4 : 0,
-    zIndex: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 22,
-  },
-  backTxt: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginLeft: 5,
-  },
   themeSwitcherWrap: {
     position: 'absolute',
-    right: 18,
-    bottom: 18,
+    right: 20,
+    top: 94, // СТАЛО ниже (шапка ~58 + отступ 36)
     zIndex: 20,
   },
+  copyrightWrap: {
+    alignItems: 'center',
+    marginBottom: 14,
+    marginTop: 18,
+  },
+  copyright: {
+    color: '#aaa',
+    fontSize: 13,
+  },
 });
+
+export default AuthScreen;

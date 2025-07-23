@@ -5,6 +5,7 @@ import {
 import MaskInput from 'react-native-mask-input';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from './Theme.Context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { login } from './rest';
 
 const PHONE_MASK = ['+','7',' ', '(', /\d/,/\d/,/\d/,')',' ',/\d/,/\d/,/\d/,'-',/\d/,/\d/,'-',/\d/,/\d/];
@@ -30,9 +31,8 @@ export const LoginForm: React.FC<Props> = ({ onRegister, onForgot }) => {
     setLoading(true);
     setErr('');
     try {
-      await login(digits, pass); // Предполагаем, что login выбрасывает ошибку при неверных данных
+      await login(digits, pass);
       Alert.alert('Успешный вход', 'Вы успешно вошли в аккаунт!');
-      // Здесь можно сбросить поля или выполнить переход
     } catch (e: any) {
       setErr('Неверный номер телефона или пароль');
       Alert.alert('Ошибка входа', 'Неверный номер телефона или пароль');
@@ -42,8 +42,15 @@ export const LoginForm: React.FC<Props> = ({ onRegister, onForgot }) => {
   };
 
   return (
-    <View style={[styles.form, { backgroundColor: theme.card }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Вход</Text>
+    <View style={styles.outer}>
+      {/* Аватар */}
+      <View style={styles.avatarWrap}>
+        <MaterialCommunityIcons name="account-circle" size={54} color="#ddd" />
+      </View>
+      {/* Заголовок и описание */}
+      <Text style={styles.sysTitle}>Домофон</Text>
+      <Text style={styles.sysWelcome}>Добро пожаловать! Войдите в свой аккаунт.</Text>
+      {/* Форма */}
       <MaskInput
         style={[
           styles.input,
@@ -73,29 +80,33 @@ export const LoginForm: React.FC<Props> = ({ onRegister, onForgot }) => {
         </TouchableOpacity>
       </View>
       {err.length > 0 && <Text style={[styles.error, { color: '#e43a4b' }]}>{err}</Text>}
+
+      {/* Красивая кнопка с градиентом */}
       <TouchableOpacity
-        style={[
-          styles.btn,
-          !valid ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
-        ]}
+        style={[styles.btn, !valid ? { opacity: 0.7 } : {}]}
         onPress={onSubmit}
         disabled={!valid || loading}
         activeOpacity={valid ? 0.8 : 1}
       >
-        {loading
-          ? <ActivityIndicator color={theme.btnText} />
-          : <Text style={[
-              styles.btnText,
-              !valid ? { color: theme.btnTextDisabled } : { color: theme.btnText }
-            ]}>Войти</Text>
-        }
+        <LinearGradient
+          colors={['#2585f4', '#1b2b64']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={[styles.btnBg, !valid && { opacity: 0.8 }]}
+        >
+          {loading
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.btnText}>Войти</Text>
+          }
+        </LinearGradient>
       </TouchableOpacity>
-      <View style={styles.linkRow}>
+
+      {/* Две ссылки снизу: забыли пароль слева, регистрация справа */}
+      <View style={styles.bottomRow}>
         <TouchableOpacity onPress={onForgot} style={{ flex: 1 }}>
-          <Text style={[styles.link, { color: theme.icon }]}>Забыли пароль?</Text>
+          <Text style={styles.linkLeft}>Забыли пароль?</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={onRegister} style={{ flex: 1 }}>
-          <Text style={[styles.link, { color: theme.icon }]}>Регистрация</Text>
+          <Text style={styles.linkRight}>Регистрация</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -103,43 +114,96 @@ export const LoginForm: React.FC<Props> = ({ onRegister, onForgot }) => {
 };
 
 const styles = StyleSheet.create({
-  form: {
-    borderRadius: 18,
-    padding: 22,
-    maxWidth: 400,
+  outer: {
+    backgroundColor: "#fff", // ВСЕГДА белый
+    borderRadius: 26,
+    padding: 28,
     width: '100%',
     alignSelf: 'center',
-  },
-  title: { fontSize: 28, fontWeight: '900', textAlign: 'center', marginBottom: 20 },
-  input: {
-    height: 50,
-    borderRadius: 13,
-    borderWidth: 1.5,
-    paddingHorizontal: 18,
-    fontSize: 16.5,
-    marginBottom: 12,
-    fontWeight: '600',
-  },
-  inputWrapper: { position: 'relative', marginBottom: 12 },
-  eye: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' },
-  btn: {
-    borderRadius: 13,
-    paddingVertical: 15,
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8,
+    shadowColor: '#23254b',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.11,
+    shadowRadius: 24,
+    elevation: 9,
+    marginTop: 0,
   },
-  btnText: { fontWeight: '900', fontSize: 18, letterSpacing: 0.05 },
-  linkRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    width: '100%',
+  avatarWrap: {
+    marginTop: 2,
+    marginBottom: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  link: {
-    fontWeight: '700',
-    fontSize: 15.5,
+  sysTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 4,
+    color: '#2d2d2d',
+    letterSpacing: 0.01,
+  },
+  sysWelcome: {
+    fontSize: 15,
+    color: '#888',
+    marginBottom: 14,
     textAlign: 'center',
   },
-  error: { fontSize: 13, marginLeft: 4, marginBottom: 10, fontWeight: '600' },
+  input: {
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1.2,
+    paddingHorizontal: 16,
+    fontSize: 16.5,
+    marginBottom: 11,
+    fontWeight: '500',
+    width: '100%',
+  },
+  inputWrapper: { position: 'relative', marginBottom: 11, width: '100%' },
+  eye: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' },
+  btn: {
+    width: '100%',
+    borderRadius: 11,
+    overflow: 'hidden',
+    marginTop: 7,
+    marginBottom: 7,
+    height: 48,
+  },
+  btnBg: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 11,
+  },
+  btnText: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    color: '#fff',
+    letterSpacing: 0.04,
+  },
+  bottomRow: {
+    width: '100%',
+    flexDirection: 'row',
+    marginTop: 3,
+    marginBottom: 0,
+    alignItems: 'center',
+  },
+  linkLeft: {
+    fontWeight: '600',
+    fontSize: 15.5,
+    color: '#2585f4',
+    textAlign: 'left',
+    paddingLeft: 3,
+    paddingTop: 2,
+  },
+  linkRight: {
+    fontWeight: '600',
+    fontSize: 15.5,
+    color: '#2585f4',
+    textAlign: 'right',
+    paddingRight: 3,
+    paddingTop: 2,
+  },
+  error: { fontSize: 13, marginLeft: 4, marginBottom: 6, fontWeight: '600' },
 });
