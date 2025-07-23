@@ -14,6 +14,7 @@ type Mode = 'login' | 'register' | 'forgot';
 
 export const AuthScreen: React.FC = () => {
   const [mode, setMode] = useState<Mode>('login');
+  const [registerStep, setRegisterStep] = useState<0 | 1 | 2 | 3>(0);
   const fade = useRef(new Animated.Value(1)).current;
   const { theme } = useTheme();
 
@@ -25,6 +26,15 @@ export const AuthScreen: React.FC = () => {
     });
   };
 
+  // Step-by-step стрелка назад для регистрации
+  const handleBack = () => {
+    if (mode === 'register' && registerStep > 0) {
+      setRegisterStep(prev => (prev - 1) as 0 | 1 | 2 | 3);
+    } else {
+      switchMode('login');
+    }
+  };
+
   let Content: React.ReactNode;
   if (mode === 'login') Content = (
     <LoginForm
@@ -32,37 +42,35 @@ export const AuthScreen: React.FC = () => {
       onForgot={() => switchMode('forgot')}
     />
   );
-  else if (mode === 'register') Content = (
-    <RegisterForm
-      onLogin={() => switchMode('login')}
-    />
-  );
+  
   else Content = (
     <ForgotForm
       onLogin={() => switchMode('login')}
     />
   );
 
-  // Показывать стрелку "Назад" только на регистрации и восстановлении
   const showBack = mode === 'register' || mode === 'forgot';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      {/* Шапка */}
+      {/* --- ШАПКА --- */}
       <View style={styles.header}>
         {showBack ? (
-          <TouchableOpacity style={styles.backBtn} onPress={() => switchMode('login')} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
             <MaterialCommunityIcons name="arrow-left" size={28} color={theme.icon} />
           </TouchableOpacity>
         ) : (
           <View style={styles.backBtnPlaceholder} />
         )}
+        {/* Центр — под лого */}
         <View style={{ flex: 1 }} />
+        {/* ThemeSwitcher — абсолютное позиционирование, ОПУЩЕН ниже центра шапки */}
+        <View style={styles.themeSwitcherWrapAbs}>
+          <ThemeSwitcher />
+        </View>
       </View>
-      {/* ThemeSwitcher — чуть ниже шапки, фиксировано */}
-      <View style={styles.themeSwitcherWrap}>
-        <ThemeSwitcher />
-      </View>
+      {/* --- /ШАПКА --- */}
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -76,7 +84,6 @@ export const AuthScreen: React.FC = () => {
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-      {/* Копирайт внизу */}
       <View style={styles.copyrightWrap}>
         <Text style={styles.copyright}>© 2025 Домофон</Text>
       </View>
@@ -90,11 +97,10 @@ const styles = StyleSheet.create({
     minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 10,
-    borderBottomWidth: 0,
     backgroundColor: 'transparent',
     marginBottom: 6,
+    position: 'relative',
   },
   backBtn: {
     width: 46,
@@ -108,6 +114,12 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
   },
+  themeSwitcherWrapAbs: {
+    position: 'absolute',
+    right: 0,
+    bottom: 6, // чем больше — тем ниже (например, 0, 6, 10, 16 и т.д.)
+    zIndex: 10,
+  },
   center: {
     flex: 1,
     justifyContent: 'center',
@@ -119,12 +131,6 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignItems: 'stretch',
     justifyContent: 'center',
-  },
-  themeSwitcherWrap: {
-    position: 'absolute',
-    right: 20,
-    top: 94, // СТАЛО ниже (шапка ~58 + отступ 36)
-    zIndex: 20,
   },
   copyrightWrap: {
     alignItems: 'center',

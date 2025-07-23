@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator
+  Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView
 } from 'react-native';
 import MaskInput from 'react-native-mask-input';
-import { useTheme } from './Theme.Context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from './Theme.Context'; // твоя тема
+import { SafeAreaView } from 'react-native';
+
 import {
   requestRegistrationCode,
   verifyPhone,
@@ -38,7 +41,7 @@ function formatErr(e: any, field?: string) {
 
 interface Props { onLogin: () => void; }
 
-const RESEND_TIMEOUT = 60; // 60 секунд
+const RESEND_TIMEOUT = 60;
 
 export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
   const { theme } = useTheme();
@@ -198,254 +201,260 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
     pass.length && pass.latin && pass.upper && pass.lower && pass.digit && pass.symbol &&
     password === password2 && !userErr;
 
+  // ---------- UI ----------
   return (
-    <View style={[styles.form, { backgroundColor: theme.card }]}>
-      {step === 0 && (
-        <>
-          <MaskInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
-            ]}
-            placeholder="Телефон"
-            value={phone}
-            onChangeText={setPhone}
-            mask={PHONE_MASK}
-            keyboardType="phone-pad"
-            placeholderTextColor={theme.subtext}
-          />
-          {err.length > 0 && (
-            <Text style={{ color: '#e43a4b', marginTop: 8 }}>{err}</Text>
-          )}
-          <TouchableOpacity
-            style={[
-              styles.btn,
-              !validStep0 ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
-            ]}
-            onPress={onSendPhone}
-            disabled={loading || !validStep0}
-            activeOpacity={validStep0 ? 0.8 : 1}
-          >
-            {loading
-              ? <ActivityIndicator color={theme.btnText} />
-              : <Text style={[
+    <View style={styles.root}>
+<KeyboardAvoidingView
+  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+  style={{ flex: 1, width: '100%' }}
+  keyboardVerticalOffset={40}
+>
+  <ScrollView
+    contentContainerStyle={{
+      flexGrow: 1,
+      justifyContent: 'flex-start', // <-- заменено
+      alignItems: 'center',         // добавь
+      minHeight: '100%',
+    }}
+    keyboardShouldPersistTaps="handled"
+  >
+    <View style={styles.card}>
+          <MaterialCommunityIcons name="account-circle" size={56} color="#d2dae2" style={styles.logo} />
+          {/* Убрана лишняя надпись */}
+          <Text style={styles.subtitle}>Добро пожаловать! Создайте свой аккаунт.</Text>
+
+        {step === 0 && (
+  <>
+    <InputWithIcon
+      icon="phone-outline"
+      placeholder="Телефон"
+      value={phone}
+      onChangeText={setPhone}
+      keyboardType="phone-pad"
+      mask={PHONE_MASK}
+    />
+    {err.length > 0 && (
+      <Text style={styles.err}>{err}</Text>
+    )}
+    <GradientButton
+      text="Далее"
+      onPress={onSendPhone}
+      loading={loading}
+      disabled={!validStep0 || loading}
+    />
+    <TouchableOpacity onPress={onLogin} style={{ alignSelf: 'center', marginTop: 6 }}>
+      <Text style={styles.link}>Уже есть аккаунт?</Text>
+    </TouchableOpacity>
+  </>
+)}
+
+            {step === 1 && (
+            <>
+
+              <InputWithIcon
+                icon="message-processing-outline"
+                placeholder="Код из SMS"
+                value={code}
+                onChangeText={setCode}
+                keyboardType="numeric"
+                maxLength={4}
+              />
+              {err.length > 0 && (
+                <Text style={styles.err}>{err}</Text>
+              )}
+              <GradientButton
+                text="Далее"
+                onPress={onCheckCode}
+                loading={loading}
+                disabled={!validStep1 || loading}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.btn,
+                  codeTimeout > 0
+                    ? { backgroundColor: '#e6eaf0' }
+                    : { backgroundColor: 'transparent' }
+                ]}
+                onPress={onResendCode}
+                disabled={loading || codeTimeout > 0}
+                activeOpacity={codeTimeout > 0 ? 1 : 0.8}
+              >
+                <Text style={[
                   styles.btnText,
-                  !validStep0 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
-                ]}>Далее</Text>
-            }
-          </TouchableOpacity>
-        </>
-      )}
-
-      {step === 1 && (
-        <>
-          <Text style={{ textAlign: 'center', color: theme.subtext, marginBottom: 6 }}>
-            Введите 4-значный код из SMS
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
-            ]}
-            placeholder="Код из SMS"
-            value={code}
-            onChangeText={setCode}
-            keyboardType="numeric"
-            maxLength={4}
-            placeholderTextColor={theme.subtext}
-          />
-          {err.length > 0 && (
-            <Text style={{ color: '#e43a4b', marginTop: 8 }}>{err}</Text>
-          )}
-          <TouchableOpacity
-            style={[
-              styles.btn,
-              !validStep1 ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
-            ]}
-            onPress={onCheckCode}
-            disabled={loading || !validStep1}
-            activeOpacity={validStep1 ? 0.8 : 1}
-          >
-            {loading
-              ? <ActivityIndicator color={theme.btnText} />
-              : <Text style={[
-                  styles.btnText,
-                  !validStep1 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
-                ]}>Далее</Text>
-            }
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.btn,
-              codeTimeout > 0
-                ? { backgroundColor: theme.btnDisabled }
-                : { backgroundColor: theme.btn }
-            ]}
-            onPress={onResendCode}
-            disabled={loading || codeTimeout > 0}
-            activeOpacity={codeTimeout > 0 ? 1 : 0.8}
-          >
-            <Text style={[
-              styles.btnText,
-              codeTimeout > 0 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
-            ]}>
-              {resendTimeoutText}
-            </Text>
-          </TouchableOpacity>
-        </>
-      )}
-
-      {step === 2 && (
-        <>
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
-            ]}
-            placeholder="Имя"
-            value={first_name}
-            onChangeText={setFirstName}
-            placeholderTextColor={theme.subtext}
-          />
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
-            ]}
-            placeholder="Фамилия"
-            value={last_name}
-            onChangeText={setLastName}
-            placeholderTextColor={theme.subtext}
-          />
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
-            ]}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholderTextColor={theme.subtext}
-          />
-          {err.length > 0 && (
-            <Text style={{ color: '#e43a4b', marginTop: 8 }}>{err}</Text>
-          )}
-          <TouchableOpacity
-            style={[
-              styles.btn,
-              !validStep2 ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
-            ]}
-            onPress={() => setStep(3)}
-            disabled={loading || !validStep2}
-            activeOpacity={validStep2 ? 0.8 : 1}
-          >
-            <Text style={[
-              styles.btnText,
-              !validStep2 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
-            ]}>Далее</Text>
-          </TouchableOpacity>
-        </>
-      )}
-
-      {step === 3 && (
-        <>
-          {userErr.length > 0 && (
-            <Text style={{
-              color: '#e43a4b',
-              marginBottom: 6,
-              marginLeft: 2,
-              fontSize: 14
-            }}>
-              {userErr}
-            </Text>
+                  codeTimeout > 0 ? { color: '#bcc3cf' } : { color: '#3567d9' }
+                ]}>
+                  {resendTimeoutText}
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
 
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
-            ]}
-            placeholder="Username"
-            value={username}
-            onChangeText={t => {
-              setUsername(t);
-              setUserErr('');
-            }}
-            placeholderTextColor={theme.subtext}
-            autoCapitalize="none"
-          />
+          {step === 2 && (
+            <>
+              <InputWithIcon
+                icon="account-outline"
+                placeholder="Имя"
+                value={first_name}
+                onChangeText={setFirstName}
+              />
+              <InputWithIcon
+                icon="account-outline"
+                placeholder="Фамилия"
+                value={last_name}
+                onChangeText={setLastName}
+              />
+              <InputWithIcon
+                icon="email-outline"
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              {err.length > 0 && (
+                <Text style={styles.err}>{err}</Text>
+              )}
+              <GradientButton
+                text="Далее"
+                onPress={() => setStep(3)}
+                disabled={!validStep2 || loading}
+              />
+            </>
+          )}
 
-          <View style={styles.inputWrap}>
-            <TextInput
-              style={[
-                styles.input,
-                { flex: 1, backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text, marginBottom: 0 }
-              ]}
-              placeholder="Пароль"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={hide}
-              placeholderTextColor={theme.subtext}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity style={styles.eye} onPress={() => setHide(h => !h)}>
-              <MaterialCommunityIcons name={hide ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
-            </TouchableOpacity>
+          {step === 3 && (
+            <>
+              {userErr.length > 0 && (
+                <Text style={{ color: '#e43a4b', marginBottom: 6, marginLeft: 2, fontSize: 14 }}>
+                  {userErr}
+                </Text>
+              )}
+              <InputWithIcon
+                icon="account-outline"
+                placeholder="Username"
+                value={username}
+                onChangeText={(t: string) => {
+                  setUsername(t);
+                  setUserErr('');
+                }}
+                autoCapitalize="none"
+              />
+
+              <PasswordInput
+                placeholder="Пароль"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={hide}
+                onToggleVisibility={() => setHide(h => !h)}
+                visible={!hide}
+              />
+              <PasswordInput
+                placeholder="Подтвердите пароль"
+                value={password2}
+                onChangeText={setPassword2}
+                secureTextEntry={hide2}
+                onToggleVisibility={() => setHide2(h => !h)}
+                visible={!hide2}
+              />
+
+              <View style={{marginBottom: 10, marginTop: 2}}>
+                <PasswordRule ok={pass.length} label="Не менее 8 символов" />
+                <PasswordRule ok={pass.upper} label="Есть заглавная буква" />
+                <PasswordRule ok={pass.lower} label="Есть строчная буква" />
+                <PasswordRule ok={pass.digit} label="Есть цифра" />
+                <PasswordRule ok={pass.symbol} label="Есть спецсимвол" />
+                <PasswordRule ok={password === password2 && password2.length > 0} label="Пароли совпадают" />
+              </View>
+              {err.length > 0 && (
+                <Text style={styles.err}>{err}</Text>
+              )}
+              <GradientButton
+                text="Зарегистрироваться"
+                onPress={onRegister}
+                loading={loading}
+                disabled={!validStep3 || loading}
+              />
+            </>
+          )}
+
+          <Text style={styles.footer}>© 2025 Домофон</Text>
           </View>
-          <View style={styles.inputWrap}>
-            <TextInput
-              style={[
-                styles.input,
-                { flex: 1, backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text, marginBottom: 0 }
-              ]}
-              placeholder="Подтвердите пароль"
-              value={password2}
-              onChangeText={setPassword2}
-              secureTextEntry={hide2}
-              placeholderTextColor={theme.subtext}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity style={styles.eye} onPress={() => setHide2(h => !h)}>
-              <MaterialCommunityIcons name={hide2 ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
-            </TouchableOpacity>
-          </View>
-          <View style={{marginBottom: 8, marginTop: 2}}>
-            <PasswordRule ok={pass.length} label="Не менее 8 символов" />
-            <PasswordRule ok={pass.upper} label="Есть заглавная буква" />
-            <PasswordRule ok={pass.lower} label="Есть строчная буква" />
-            <PasswordRule ok={pass.digit} label="Есть цифра" />
-            <PasswordRule ok={pass.symbol} label="Есть спецсимвол" />
-            <PasswordRule ok={password === password2 && password2.length > 0} label="Пароли совпадают" />
-          </View>
-          {err.length > 0 && (
-            <Text style={{ color: '#e43a4b', marginTop: 8 }}>{err}</Text>
-          )}
-          <TouchableOpacity
-            style={[
-              styles.btn,
-              !validStep3 ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
-            ]}
-            onPress={onRegister}
-            disabled={loading || !validStep3}
-            activeOpacity={validStep3 ? 0.8 : 1}
-          >
-            {loading
-              ? <ActivityIndicator color={theme.btnText} />
-              : <Text style={[
-                  styles.btnText,
-                  !validStep3 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
-                ]}>Зарегистрироваться</Text>
-            }
-          </TouchableOpacity>
-        </>
-      )}
-
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };
+
+// ---------- Компоненты ----------
+
+const InputWithIcon = ({
+  icon,
+  mask,
+  ...props
+}: any) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+    <MaterialCommunityIcons name={icon} size={22} color="#b4bac3" style={{ position: 'absolute', left: 16, zIndex: 2 }} />
+    {mask ? (
+      <MaskInput
+        {...props}
+        style={[styles.input, { paddingLeft: 44 }]}
+        mask={mask}
+        placeholderTextColor="#bcc3cf"
+      />
+    ) : (
+      <TextInput
+        {...props}
+        style={[styles.input, { paddingLeft: 44 }]}
+        placeholderTextColor="#bcc3cf"
+      />
+    )}
+  </View>
+);
+
+const PasswordInput = ({
+  placeholder,
+  value,
+  onChangeText,
+  secureTextEntry,
+  onToggleVisibility,
+  visible
+}: any) => (
+  <View style={styles.inputWrap}>
+    <TextInput
+      style={[styles.input, { flex: 1, paddingLeft: 44, marginBottom: 0 }]}
+      placeholder={placeholder}
+      value={value}
+      onChangeText={onChangeText}
+      secureTextEntry={secureTextEntry}
+      autoCapitalize="none"
+      placeholderTextColor="#bcc3cf"
+    />
+    <MaterialCommunityIcons name="lock-outline" size={22} color="#b4bac3" style={{ position: 'absolute', left: 16, zIndex: 2 }} />
+    <TouchableOpacity style={styles.eye} onPress={onToggleVisibility}>
+      <MaterialCommunityIcons name={visible ? 'eye-outline' : 'eye-off-outline'} size={22} color="#b4bac3" />
+    </TouchableOpacity>
+  </View>
+);
+
+const GradientButton = ({ text, onPress, loading, disabled }: any) => (
+  <TouchableOpacity
+    style={[styles.btn, disabled ? { opacity: 0.8 } : {}]}
+    onPress={onPress}
+    disabled={disabled}
+    activeOpacity={disabled ? 1 : 0.85}
+  >
+    <LinearGradient
+      colors={['#2a7cf7', '#08184a']}
+      start={[0, 0]}
+      end={[1, 0]}
+      style={styles.gradient}
+    />
+    {loading
+      ? <ActivityIndicator color="#fff" />
+      : <Text style={styles.btnText}>{text}</Text>
+    }
+  </TouchableOpacity>
+);
 
 const PasswordRule: React.FC<{ ok: boolean; label: string }> = ({ ok, label }) => (
   <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 2}}>
@@ -454,34 +463,117 @@ const PasswordRule: React.FC<{ ok: boolean; label: string }> = ({ ok, label }) =
   </View>
 );
 
+// ---------- Стили ----------
+
 const styles = StyleSheet.create({
-  form: {
-    borderRadius: 18,
-    padding: 22,
-    maxWidth: 400,
-    width: '100%',
+root: {
+  flex: 1,
+  backgroundColor: '#f5f6fa',
+  alignItems: 'center',
+  minHeight: '100%',
+},
+
+card: {
+  width: '94%',
+  // maxWidth: 380,      // убрать!
+  paddingVertical: 24,   // вместо 38, чуть меньше
+  paddingHorizontal: 24,
+  backgroundColor: 'white',
+  borderRadius: 26,
+  marginTop: 42,         // как у LoginForm
+  marginBottom: 18,      // добавить!
+  alignItems: 'center',
+  // ... остальные стили
+},
+
+
+
+  logo: {
     alignSelf: 'center',
-    marginTop: 0,
+    marginBottom: 10,
   },
-  input: {
-    height: 50,
-    borderRadius: 13,
-    borderWidth: 1.5,
-    paddingHorizontal: 18,
-    fontSize: 16.5,
-    marginBottom: 12,
-    fontWeight: '600'
+  title: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 2,
+    color: '#222c32',
   },
+  subtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#8f98a6',
+    marginBottom: 18,
+  },
+input: {
+  width: '100%',
+  height: 50,
+  borderRadius: 14,
+  borderWidth: 1.5,
+  borderColor: '#e6eaf0',
+  backgroundColor: '#f8fafd',
+  paddingHorizontal: 18,
+  fontSize: 16.5,
+  fontWeight: '600'
+},
   btn: {
     borderRadius: 13,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 8,
+    overflow: 'hidden',
+    width: '100%',
+    marginTop: 4,
     marginBottom: 8,
+    minHeight: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
   },
-  btnText: { fontWeight: '900', fontSize: 18, letterSpacing: 0.05 },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  eye: { position: 'absolute', right: 10, top: 0, bottom: 0, justifyContent: 'center', height: '100%' },
+  gradient: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 13,
+    zIndex: 0,
+  },
+  btnText: {
+    fontWeight: '900',
+    fontSize: 18,
+    letterSpacing: 0.05,
+    color: '#fff',
+    zIndex: 1,
+  },
+  link: {
+    alignSelf: 'flex-end',
+    color: '#367cf6',
+    marginTop: 7,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  footer: {
+    marginTop: 22,
+    alignSelf: 'center',
+    fontSize: 13,
+    color: '#bcc3cf',
+  },
+  err: {
+    color: '#e43a4b',
+    marginBottom: 7,
+    fontSize: 15,
+    textAlign: 'left',
+    marginLeft: 4
+  },
+inputWrap: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 14,
+  position: 'relative',
+  width: '100%',
+},
+  eye: {
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    height: '100%'
+  },
 });
 
 export default RegisterForm;
