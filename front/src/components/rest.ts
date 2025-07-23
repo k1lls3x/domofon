@@ -104,7 +104,7 @@ export function register(payload: RegisterPayload): Promise<AuthResponse> {
 
 // 1. Запросить код для сброса на существующий номер
 export function requestPasswordResetCode(phone: string): Promise<AuthResponse> {
-  return request<AuthResponse>('/auth/request-phone-verification', { phone });
+  return request<AuthResponse>('/auth/forgot-password', { phone });
 }
 
 // 2. Подтвердить код сброса (тот же verifyPhone)
@@ -117,3 +117,5 @@ export function resetPasswordByPhone(
 ): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/reset-password', { phone, newPassword });
 }
+
+
