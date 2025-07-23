@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ActivityIndicator
 } from 'react-native';
@@ -52,6 +52,34 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
   const digits = phone.replace(/\D/g, '');
   const pass = checkPassword(newPass);
 
+  // --- Таймер ---
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (step === 1) {
+      setSecondsLeft(300); // 5 минут
+      timerRef.current && clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setSecondsLeft(s => {
+          if (s <= 1) {
+            timerRef.current && clearInterval(timerRef.current);
+            return 0;
+          }
+          return s - 1;
+        });
+      }, 1000);
+    }
+    return () => { timerRef.current && clearInterval(timerRef.current); };
+  }, [step]);
+
+  const formatTimer = () => {
+    const m = Math.floor(secondsLeft / 60);
+    const s = secondsLeft % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+  // -----------
+
   const handleForgot = async () => {
     setErr('');
     if (digits.length !== 11) {
@@ -93,11 +121,14 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
   const handleResetPassword = async () => {
     setErr('');
     if (
-      newPass.length < 6 ||
-      !/[A-Za-z]/.test(newPass) ||
-      !/\d/.test(newPass)
+      !pass.length ||
+      !pass.latin ||
+      !pass.upper ||
+      !pass.lower ||
+      !pass.digit ||
+      !pass.symbol
     ) {
-      setErr('Пароль должен быть минимум 6 символов, содержать буквы и цифры');
+      setErr('Пароль должен быть не менее 8 символов, с латиницей, заглавной, строчной буквой, цифрой и спецсимволом');
       return;
     }
     setLoading(true);
@@ -168,6 +199,9 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
 
       {step === 1 && (
         <>
+          <Text style={{ textAlign: 'center', color: theme.subtext, marginBottom: 6 }}>
+            Время на ввод кода: {formatTimer()}
+          </Text>
           <TextInput
             style={[
               styles.input,
@@ -188,12 +222,12 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
           <TouchableOpacity
             style={[
               styles.btn,
-              code.length !== 4
+              code.length !== 4 || secondsLeft === 0
                 ? { backgroundColor: theme.btnDisabled }
                 : { backgroundColor: theme.btn }
             ]}
             onPress={handleVerifyCode}
-            disabled={loading || code.length !== 4}
+            disabled={loading || code.length !== 4 || secondsLeft === 0}
           >
             {loading ? (
               <ActivityIndicator color={theme.btnText} />
@@ -201,7 +235,7 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
               <Text
                 style={[
                   styles.btnText,
-                  code.length !== 4
+                  code.length !== 4 || secondsLeft === 0
                     ? { color: theme.btnTextDisabled }
                     : { color: theme.btnText }
                 ]}

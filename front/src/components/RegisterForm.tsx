@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator
@@ -36,8 +36,9 @@ function formatErr(e: any, field?: string) {
   return e?.message || 'Ошибка';
 }
 
-
 interface Props { onLogin: () => void; }
+
+const RESEND_TIMEOUT = 60; // 60 секунд
 
 export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
   const { theme } = useTheme();
@@ -63,26 +64,53 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
 
   const pass = checkPassword(password);
 
-  // Шаг 0: отправка телефона (и проверка на уникальность — сервер сам всё валидирует!)
-const onSendPhone = async () => {
-  setErr('');
-  if (digits.length !== 11) {
-    setErr('Введите корректный номер');
-    return;
-  }
-  setLoading(true);
-  try {
-    await requestRegistrationCode(digits);
-    setStep(1);
-    setCode('');
-    Alert.alert('Код отправлен', 'Введите код из SMS');
-  } catch (e: any) {
-    setErr(formatErr(e, 'phone'));
-  } finally {
-    setLoading(false);
-  }
-};
+  // --- Таймер повторного запроса кода ---
+  const [codeTimeout, setCodeTimeout] = useState(RESEND_TIMEOUT);
+  const codeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  useEffect(() => {
+  if (step === 1) {
+    setCodeTimeout(RESEND_TIMEOUT);
+    if (codeTimerRef.current) clearInterval(codeTimerRef.current);
+    codeTimerRef.current = setInterval(() => {
+      setCodeTimeout((prev) => {
+        if (prev <= 1) {
+          if (codeTimerRef.current) clearInterval(codeTimerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+  return () => {
+    if (codeTimerRef.current) clearInterval(codeTimerRef.current);
+  };
+}, [step]);
+
+
+  const resendTimeoutText = codeTimeout > 0
+    ? `Запросить код повторно (${codeTimeout < 10 ? '0' : ''}${codeTimeout})`
+    : 'Запросить код повторно';
+
+  // Шаг 0: отправка телефона
+  const onSendPhone = async () => {
+    setErr('');
+    if (digits.length !== 11) {
+      setErr('Введите корректный номер');
+      return;
+    }
+    setLoading(true);
+    try {
+      await requestRegistrationCode(digits);
+      setStep(1);
+      setCode('');
+      Alert.alert('Код отправлен', 'Введите код из SMS');
+    } catch (e: any) {
+      setErr(formatErr(e, 'phone'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Шаг 1: подтверждение кода
   const onCheckCode = async () => {
@@ -102,7 +130,33 @@ const onSendPhone = async () => {
     }
   };
 
-  // Шаг 3: регистрация (unique username — только при сабмите!)
+  // Повторный запрос кода
+  const onResendCode = async () => {
+    setErr('');
+    setLoading(true);
+    try {
+      await requestRegistrationCode(digits);
+      setCode(''); // убиваем старый код
+      setCodeTimeout(RESEND_TIMEOUT); // опять ждём 60 сек
+      codeTimerRef.current && clearInterval(codeTimerRef.current);
+      codeTimerRef.current = setInterval(() => {
+        setCodeTimeout((prev) => {
+          if (prev <= 1) {
+            codeTimerRef.current && clearInterval(codeTimerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      Alert.alert('Код отправлен', 'Введите новый код из SMS');
+    } catch (e: any) {
+      setErr(formatErr(e, 'phone'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Шаг 3: регистрация
   const onRegister = async () => {
     setErr('');
     setUserErr('');
@@ -188,6 +242,9 @@ const onSendPhone = async () => {
 
       {step === 1 && (
         <>
+          <Text style={{ textAlign: 'center', color: theme.subtext, marginBottom: 6 }}>
+            Введите 4-значный код из SMS
+          </Text>
           <TextInput
             style={[
               styles.input,
@@ -219,6 +276,25 @@ const onSendPhone = async () => {
                   !validStep1 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
                 ]}>Далее</Text>
             }
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.btn,
+              codeTimeout > 0
+                ? { backgroundColor: theme.btnDisabled }
+                : { backgroundColor: theme.btn }
+            ]}
+            onPress={onResendCode}
+            disabled={loading || codeTimeout > 0}
+            activeOpacity={codeTimeout > 0 ? 1 : 0.8}
+          >
+            <Text style={[
+              styles.btnText,
+              codeTimeout > 0 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
+            ]}>
+              {resendTimeoutText}
+            </Text>
           </TouchableOpacity>
         </>
       )}
@@ -278,98 +354,97 @@ const onSendPhone = async () => {
       )}
 
       {step === 3 && (
-  <>
-    {/* Сообщение об ошибке username — НАД инпутом */}
-    {userErr.length > 0 && (
-      <Text style={{
-        color: '#e43a4b',
-        marginBottom: 6,
-        marginLeft: 2,
-        fontSize: 14
-      }}>
-        {userErr}
-      </Text>
-    )}
+        <>
+          {userErr.length > 0 && (
+            <Text style={{
+              color: '#e43a4b',
+              marginBottom: 6,
+              marginLeft: 2,
+              fontSize: 14
+            }}>
+              {userErr}
+            </Text>
+          )}
 
-    <TextInput
-      style={[
-        styles.input,
-        { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
-      ]}
-      placeholder="Username"
-      value={username}
-      onChangeText={t => {
-        setUsername(t);
-        setUserErr('');
-      }}
-      placeholderTextColor={theme.subtext}
-      autoCapitalize="none"
-    />
+          <TextInput
+            style={[
+              styles.input,
+              { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
+            ]}
+            placeholder="Username"
+            value={username}
+            onChangeText={t => {
+              setUsername(t);
+              setUserErr('');
+            }}
+            placeholderTextColor={theme.subtext}
+            autoCapitalize="none"
+          />
 
-    <View style={styles.inputWrap}>
-      <TextInput
-        style={[
-          styles.input,
-          { flex: 1, backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text, marginBottom: 0 }
-        ]}
-        placeholder="Пароль"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry={hide}
-        placeholderTextColor={theme.subtext}
-        autoCapitalize="none"
-      />
-      <TouchableOpacity style={styles.eye} onPress={() => setHide(h => !h)}>
-        <MaterialCommunityIcons name={hide ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
-      </TouchableOpacity>
-    </View>
-    <View style={styles.inputWrap}>
-      <TextInput
-        style={[
-          styles.input,
-          { flex: 1, backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text, marginBottom: 0 }
-        ]}
-        placeholder="Подтвердите пароль"
-        value={password2}
-        onChangeText={setPassword2}
-        secureTextEntry={hide2}
-        placeholderTextColor={theme.subtext}
-        autoCapitalize="none"
-      />
-      <TouchableOpacity style={styles.eye} onPress={() => setHide2(h => !h)}>
-        <MaterialCommunityIcons name={hide2 ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
-      </TouchableOpacity>
-    </View>
-    <View style={{marginBottom: 8, marginTop: 2}}>
-      <PasswordRule ok={pass.length} label="Не менее 8 символов" />
-      <PasswordRule ok={pass.upper} label="Есть заглавная буква" />
-      <PasswordRule ok={pass.lower} label="Есть строчная буква" />
-      <PasswordRule ok={pass.digit} label="Есть цифра" />
-      <PasswordRule ok={pass.symbol} label="Есть спецсимвол" />
-      <PasswordRule ok={password === password2 && password2.length > 0} label="Пароли совпадают" />
-    </View>
-    {err.length > 0 && (
-      <Text style={{ color: '#e43a4b', marginTop: 8 }}>{err}</Text>
-    )}
-    <TouchableOpacity
-      style={[
-        styles.btn,
-        !validStep3 ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
-      ]}
-      onPress={onRegister}
-      disabled={loading || !validStep3}
-      activeOpacity={validStep3 ? 0.8 : 1}
-    >
-      {loading
-        ? <ActivityIndicator color={theme.btnText} />
-        : <Text style={[
-            styles.btnText,
-            !validStep3 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
-          ]}>Зарегистрироваться</Text>
-      }
-    </TouchableOpacity>
-  </>
-)}
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={[
+                styles.input,
+                { flex: 1, backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text, marginBottom: 0 }
+              ]}
+              placeholder="Пароль"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={hide}
+              placeholderTextColor={theme.subtext}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity style={styles.eye} onPress={() => setHide(h => !h)}>
+              <MaterialCommunityIcons name={hide ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={[
+                styles.input,
+                { flex: 1, backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text, marginBottom: 0 }
+              ]}
+              placeholder="Подтвердите пароль"
+              value={password2}
+              onChangeText={setPassword2}
+              secureTextEntry={hide2}
+              placeholderTextColor={theme.subtext}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity style={styles.eye} onPress={() => setHide2(h => !h)}>
+              <MaterialCommunityIcons name={hide2 ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
+            </TouchableOpacity>
+          </View>
+          <View style={{marginBottom: 8, marginTop: 2}}>
+            <PasswordRule ok={pass.length} label="Не менее 8 символов" />
+            <PasswordRule ok={pass.upper} label="Есть заглавная буква" />
+            <PasswordRule ok={pass.lower} label="Есть строчная буква" />
+            <PasswordRule ok={pass.digit} label="Есть цифра" />
+            <PasswordRule ok={pass.symbol} label="Есть спецсимвол" />
+            <PasswordRule ok={password === password2 && password2.length > 0} label="Пароли совпадают" />
+          </View>
+          {err.length > 0 && (
+            <Text style={{ color: '#e43a4b', marginTop: 8 }}>{err}</Text>
+          )}
+          <TouchableOpacity
+            style={[
+              styles.btn,
+              !validStep3 ? { backgroundColor: theme.btnDisabled } : { backgroundColor: theme.btn }
+            ]}
+            onPress={onRegister}
+            disabled={loading || !validStep3}
+            activeOpacity={validStep3 ? 0.8 : 1}
+          >
+            {loading
+              ? <ActivityIndicator color={theme.btnText} />
+              : <Text style={[
+                  styles.btnText,
+                  !validStep3 ? { color: theme.btnTextDisabled } : { color: theme.btnText }
+                ]}>Зарегистрироваться</Text>
+            }
+          </TouchableOpacity>
+        </>
+      )}
 
     </View>
   );

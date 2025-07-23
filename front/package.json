@@ -18,7 +18,8 @@
     "react": "19.0.0",
     "react-native": "0.79.5",
     "react-native-flash-message": "^0.4.2",
-    "react-native-mask-input": "^1.2.3"
+    "react-native-mask-input": "^1.2.3",
+    "react-native-reanimated": "^3.19.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
