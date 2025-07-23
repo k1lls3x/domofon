@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 		"domofon/internal/db"
+		 httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func NewRouter(pool *pgxpool.Pool) *mux.Router {
@@ -17,6 +18,7 @@ func NewRouter(pool *pgxpool.Pool) *mux.Router {
 	userHandler := user.NewUserHandler(userService)
 
 	queries := db.New(pool)
+  // Подключаем Swagger UI по пути /swagger/
 
 	// Verification
 	verifRepo := verification.NewRepository(queries)
@@ -34,7 +36,7 @@ authRepo := auth.NewAuthRepository(pool)
 	authHandler := auth.NewAuthHandler(authService)
 
 	r := mux.NewRouter()
-
+    r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	// --- User routes ---
 	r.HandleFunc("/users",      userHandler.GetUsers).Methods("GET")
 	r.HandleFunc("/users",      userHandler.CreateUser).Methods("POST")

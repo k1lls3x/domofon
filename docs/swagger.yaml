@@ -1,0 +1,266 @@
+basePath: /
+definitions:
+  internal_auth.ChangePasswordRequest:
+    properties:
+      new_password:
+        type: string
+      old_password:
+        type: string
+      phone:
+        type: string
+    type: object
+  internal_auth.ForgotPasswordRequest:
+    properties:
+      phone:
+        type: string
+    type: object
+  internal_auth.LoginRequest:
+    properties:
+      password:
+        type: string
+      phone:
+        type: string
+    type: object
+  internal_auth.RegisterRequest:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+  internal_auth.RequestPhoneVerificationRequest:
+    properties:
+      phone:
+        type: string
+    type: object
+  internal_auth.ResetPasswordRequest:
+    properties:
+      newPassword:
+        type: string
+      phone:
+        type: string
+    type: object
+  internal_auth.UserResponse:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: integer
+      last_name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+  internal_auth.VerifyPhoneRequest:
+    properties:
+      code:
+        type: string
+      phone:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API для системы Домофон
+  title: Domofon API
+  version: "1.0"
+paths:
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      description: Смена пароля с проверкой старого пароля
+      parameters:
+      - description: Данные для смены пароля
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Пароль успешно изменён
+        "400":
+          description: Ошибка смены пароля
+          schema:
+            type: string
+      summary: Смена пароля по телефону
+      tags:
+      - auth
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Отправляет SMS-код для сброса пароля по телефону
+      parameters:
+      - description: Номер телефона
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Код сброса отправлен
+        "400":
+          description: Номер не найден
+          schema:
+            type: string
+      summary: Запросить сброс пароля
+      tags:
+      - auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Авторизация пользователя по телефону и паролю
+      parameters:
+      - description: Данные для входа
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Пользователь авторизован
+          schema:
+            $ref: '#/definitions/internal_auth.UserResponse'
+        "400":
+          description: Некорректный JSON
+          schema:
+            type: string
+        "401":
+          description: Неверный телефон или пароль
+          schema:
+            type: string
+      summary: Вход по номеру телефона и паролю
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Создает нового пользователя по данным (телефон, имя, email и т.д.)
+      parameters:
+      - description: Данные для регистрации
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Пользователь успешно создан
+        "400":
+          description: Некорректный JSON/пароль/номер занят
+          schema:
+            type: string
+        "500":
+          description: Ошибка сервера
+          schema:
+            type: string
+      summary: Регистрация нового пользователя
+      tags:
+      - auth
+  /auth/request-registration-code:
+    post:
+      consumes:
+      - application/json
+      description: Отправляет код подтверждения на номер для регистрации
+      parameters:
+      - description: Номер телефона
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.RequestPhoneVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Код отправлен
+        "400":
+          description: Аккаунт с этим номером уже существует
+          schema:
+            type: string
+        "500":
+          description: Ошибка сервера
+          schema:
+            type: string
+      summary: Запросить код для регистрации
+      tags:
+      - auth
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Установка нового пароля по телефону после проверки кода
+      parameters:
+      - description: Телефон и новый пароль
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Пароль успешно сброшен
+        "400":
+          description: Ошибка сброса пароля
+          schema:
+            type: string
+      summary: Сброс пароля по телефону
+      tags:
+      - auth
+  /auth/verify-phone:
+    post:
+      consumes:
+      - application/json
+      description: Проверка кода, отправленного на телефон (регистрация/восстановление)
+      parameters:
+      - description: Телефон и код
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.VerifyPhoneRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Код успешно подтверждён
+        "400":
+          description: Неверный или истёкший код
+          schema:
+            type: string
+      summary: Подтвердить номер телефона
+      tags:
+      - auth
+swagger: "2.0"

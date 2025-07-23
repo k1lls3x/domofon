@@ -18,7 +18,17 @@ func NewAuthHandler(authService *AuthService) *AuthHandler {
 	return &AuthHandler{auth: authService}
 }
 
-// POST /auth/register
+// Register godoc
+// @Summary Регистрация нового пользователя
+// @Description Создает нового пользователя по данным (телефон, имя, email и т.д.)
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body RegisterRequest true "Данные для регистрации"
+// @Success 201 "Пользователь успешно создан"
+// @Failure 400 {string} string "Некорректный JSON/пароль/номер занят"
+// @Failure 500 {string} string "Ошибка сервера"
+// @Router /auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -60,7 +70,18 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 }
-// POST /auth/login
+
+// Login godoc
+// @Summary Вход по номеру телефона и паролю
+// @Description Авторизация пользователя по телефону и паролю
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body auth.LoginRequest true "Данные для входа"
+// @Success 200 {object} auth.UserResponse "Пользователь авторизован"
+// @Failure 400 {string} string "Некорректный JSON"
+// @Failure 401 {string} string "Неверный телефон или пароль"
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -82,7 +103,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
-// POST /auth/change-password
+// ChangePassword godoc
+// @Summary Смена пароля по телефону
+// @Description Смена пароля с проверкой старого пароля
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body ChangePasswordRequest true "Данные для смены пароля"
+// @Success 200 "Пароль успешно изменён"
+// @Failure 400 {string} string "Ошибка смены пароля"
+// @Router /auth/change-password [post]
 func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	var req ChangePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -102,7 +132,17 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// POST /auth/request-registration-code
+// RequestRegistrationCode godoc
+// @Summary Запросить код для регистрации
+// @Description Отправляет код подтверждения на номер для регистрации
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body RequestPhoneVerificationRequest true "Номер телефона"
+// @Success 200 "Код отправлен"
+// @Failure 400 {string} string "Аккаунт с этим номером уже существует"
+// @Failure 500 {string} string "Ошибка сервера"
+// @Router /auth/request-registration-code [post]
 func (h *AuthHandler) RequestRegistrationCode(w http.ResponseWriter, r *http.Request) {
 	var req RequestPhoneVerificationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -130,7 +170,16 @@ func (h *AuthHandler) RequestRegistrationCode(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusOK)
 }
 
-// POST /auth/forgot-password
+// ForgotPassword godoc
+// @Summary Запросить сброс пароля
+// @Description Отправляет SMS-код для сброса пароля по телефону
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body ForgotPasswordRequest true "Номер телефона"
+// @Success 200 "Код сброса отправлен"
+// @Failure 400 {string} string "Номер не найден"
+// @Router /auth/forgot-password [post]
 func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	var req ForgotPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -147,7 +196,16 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// POST /auth/verify-phone
+// VerifyPhone godoc
+// @Summary Подтвердить номер телефона
+// @Description Проверка кода, отправленного на телефон (регистрация/восстановление)
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body VerifyPhoneRequest true "Телефон и код"
+// @Success 200 "Код успешно подтверждён"
+// @Failure 400 {string} string "Неверный или истёкший код"
+// @Router /auth/verify-phone [post]
 func (h *AuthHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 	var req VerifyPhoneRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -167,7 +225,16 @@ func (h *AuthHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// POST /auth/reset-password
+// ResetPassword godoc
+// @Summary Сброс пароля по телефону
+// @Description Установка нового пароля по телефону после проверки кода
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body ResetPasswordRequest true "Телефон и новый пароль"
+// @Success 200 "Пароль успешно сброшен"
+// @Failure 400 {string} string "Ошибка сброса пароля"
+// @Router /auth/reset-password [post]
 func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req ResetPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
