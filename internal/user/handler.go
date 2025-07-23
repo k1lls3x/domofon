@@ -63,8 +63,8 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	params := db.CreateUserParams{
     Username:     req.Username,
     PasswordHash: req.PasswordHash,
-    Email:        toPgText(req.Email),
-    Phone:        toPgText(req.Phone),
+    Email:        req.Email,
+    Phone:        req.Phone,
     Role:         toPgText(req.Role),
     FirstName:    toPgText(req.FirstName),
     LastName:     toPgText(req.LastName),

@@ -20,11 +20,10 @@ type Auth interface {
 	InvalidateResetToken(ctx context.Context, token string) error
 	GetUserByPhone(ctx context.Context, phone string) (*db.User, error)
 	ChangePasswordByPhone(ctx context.Context, phone string, newHash string) error
-	UpsertPhoneVerificationToken(ctx context.Context, phone, code string, expiresAt time.Time) error
-  GetPhoneVerificationToken(ctx context.Context, phone, code string) (*db.PhoneVerificationToken, error)
-   DeletePhoneVerificationToken(ctx context.Context, phone string) error
+
 	IsPhoneTaken(ctx context.Context, phone string) (bool, error)
   IsUsernameTaken(ctx context.Context, username string) (bool, error)
+	IsEmailTaken(ctx context.Context, email string)(bool,error)
 	}
 
 
@@ -69,7 +68,7 @@ func (r *AuthRepository) InvalidateResetToken(ctx context.Context, token string)
 }
 
 func (r *AuthRepository) GetUserByPhone(ctx context.Context, phone string) (*db.User, error) {
-	user, err := r.queries.GetUserByPhone(ctx, pgtype.Text{String: phone, Valid: phone != ""})
+	user, err := r.queries.GetUserByPhone(ctx, phone)
 	if err != nil {
 		return nil, err
 	}
@@ -79,34 +78,14 @@ func (r *AuthRepository) GetUserByPhone(ctx context.Context, phone string) (*db.
 func (r *AuthRepository) ChangePasswordByPhone(ctx context.Context, phone, newHash string) error {
 	return r.queries.ChangePasswordByPhone(ctx, db.ChangePasswordByPhoneParams{
 		PasswordHash: newHash,
-		Phone:        pgtype.Text{String: phone, Valid: true},
+		Phone:         phone,
 	})
 }
 
-func (r *AuthRepository) UpsertPhoneVerificationToken(ctx context.Context, phone, code string, expiresAt time.Time) error {
-	return r.queries.UpsertPhoneVerificationToken(ctx, db.UpsertPhoneVerificationTokenParams{
-		Phone:            phone,
-		VerificationCode: code,
-		ExpiresAt:        pgtype.Timestamp{Time: expiresAt, Valid: true},
-	})
-}
 
-func (r *AuthRepository) GetPhoneVerificationToken(ctx context.Context, phone, code string) (*db.PhoneVerificationToken, error) {
-    token, err := r.queries.GetPhoneVerificationToken(ctx, db.GetPhoneVerificationTokenParams{
-        Phone:            phone,
-        VerificationCode: code,
-    })
-    if err != nil {
-        return nil, err
-    }
-    return &token, nil
-}
 
-func (r *AuthRepository) DeletePhoneVerificationToken(ctx context.Context, phone string) error {
-	return r.queries.DeletePhoneVerificationToken(ctx, phone)
-}
 func (r *AuthRepository) IsPhoneTaken(ctx context.Context, phone string) (bool, error) {
-    _, err := r.queries.GetUserByPhone(ctx, pgtype.Text{String: phone, Valid: phone != ""})
+    _, err := r.queries.GetUserByPhone(ctx, phone)
     if err != nil {
         if errors.Is(err, pgx.ErrNoRows) {
             return false, nil
@@ -116,10 +95,22 @@ func (r *AuthRepository) IsPhoneTaken(ctx context.Context, phone string) (bool, 
     // Если нет ошибки, значит пользователь найден
     return true, nil
 }
+
 func (r *AuthRepository) IsUsernameTaken(ctx context.Context, username string) (bool, error) {
 	_, err := r.queries.GetUserByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (r *AuthRepository) IsEmailTaken(ctx context.Context, email string)(bool,error) {
+	_, err := r.queries.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err,pgx.ErrNoRows){
 			return false, nil
 		}
 		return false, err

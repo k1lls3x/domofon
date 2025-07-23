@@ -82,8 +82,10 @@ export function resetPasswordByPhone(
   return request<AuthResponse>('/auth/reset-password', { phone, newPassword });
 }
 
+
 // --- Функция для UI: просто возвращает message с бэка или fallback ---
 export function mapError(error: any): string {
   // Показываем сообщение только с бэка, если оно есть
   return error?.serverMessage || error?.message || 'Произошла неизвестная ошибка';
 }
+

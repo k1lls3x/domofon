@@ -39,8 +39,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	params := db.RegisterUserParams{
 		Username:     req.Username,
 		PasswordHash: hashedPassword,
-		Email:        pgtype.Text{String: req.Email, Valid: req.Email != ""},
-		Phone:        pgtype.Text{String: req.Phone, Valid: req.Phone != ""},
+    Email:        req.Email,
+    Phone:        req.Phone,
 		Role:         pgtype.Text{String: req.Role, Valid: req.Role != ""},
 		IsActive:     pgtype.Bool{Bool: true, Valid: true},
 		FirstName:    pgtype.Text{String: req.FirstName, Valid: req.FirstName != ""},
@@ -60,12 +60,6 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 }
-var (
-  
-    ErrUsernameTaken      = errors.New("пользователь с таким username уже существует")
-    ErrPhoneTaken         = errors.New("пользователь с таким номером телефона уже существует")
-)
-
 // POST /auth/login
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest

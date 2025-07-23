@@ -70,3 +70,12 @@ WHERE phone = $1 AND verification_code = $2 AND expires_at > NOW();
 
 -- name: DeletePhoneVerificationToken :exec
 DELETE FROM phone_verification_tokens WHERE phone = $1;
+
+-- name: GetUserByEmail :one
+SELECT * FROM users WHERE email = $1;
+
+-- name: GetPhoneVerificationTokenByPhone :one
+SELECT phone, verification_code, expires_at, created_at
+FROM phone_verification_tokens
+WHERE phone = $1;
+

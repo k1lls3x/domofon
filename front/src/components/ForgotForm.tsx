@@ -3,13 +3,15 @@ import {
   View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ActivityIndicator
 } from 'react-native';
 import MaskInput from 'react-native-mask-input';
+
+import { useTheme } from './Theme.Context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   requestPasswordResetCode,
   verifyResetCode,
   resetPasswordByPhone
 } from './rest';
-import { useTheme } from './Theme.Context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+
 
 const PHONE_MASK = [
   '+','7',' ', '(', /\d/,/\d/,/\d/,')',' ',
