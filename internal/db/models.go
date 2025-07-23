@@ -113,8 +113,8 @@ type User struct {
 	ID           int32
 	Username     string
 	PasswordHash string
-	Email        pgtype.Text
-	Phone        pgtype.Text
+	Email        string
+	Phone        string
 	Role         pgtype.Text
 	IsActive     pgtype.Bool
 	CreatedAt    pgtype.Timestamp

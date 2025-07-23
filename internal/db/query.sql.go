@@ -33,7 +33,7 @@ WHERE phone = $2
 
 type ChangePasswordByPhoneParams struct {
 	PasswordHash string
-	Phone        pgtype.Text
+	Phone        string
 }
 
 func (q *Queries) ChangePasswordByPhone(ctx context.Context, arg ChangePasswordByPhoneParams) error {
@@ -66,8 +66,8 @@ RETURNING id, username, password_hash, email, phone, role, is_active, created_at
 type CreateUserParams struct {
 	Username     string
 	PasswordHash string
-	Email        pgtype.Text
-	Phone        pgtype.Text
+	Email        string
+	Phone        string
 	Role         pgtype.Text
 	FirstName    pgtype.Text
 	LastName     pgtype.Text
@@ -148,6 +148,46 @@ func (q *Queries) GetPhoneVerificationToken(ctx context.Context, arg GetPhoneVer
 	return i, err
 }
 
+const getPhoneVerificationTokenByPhone = `-- name: GetPhoneVerificationTokenByPhone :one
+SELECT phone, verification_code, expires_at, created_at
+FROM phone_verification_tokens
+WHERE phone = $1
+`
+
+func (q *Queries) GetPhoneVerificationTokenByPhone(ctx context.Context, phone string) (PhoneVerificationToken, error) {
+	row := q.db.QueryRow(ctx, getPhoneVerificationTokenByPhone, phone)
+	var i PhoneVerificationToken
+	err := row.Scan(
+		&i.Phone,
+		&i.VerificationCode,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users WHERE email = $1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Email,
+		&i.Phone,
+		&i.Role,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.FirstName,
+		&i.LastName,
+	)
+	return i, err
+}
+
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users WHERE id = $1
 `
@@ -174,7 +214,7 @@ const getUserByPhone = `-- name: GetUserByPhone :one
 SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users WHERE phone = $1
 `
 
-func (q *Queries) GetUserByPhone(ctx context.Context, phone pgtype.Text) (User, error) {
+func (q *Queries) GetUserByPhone(ctx context.Context, phone string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByPhone, phone)
 	var i User
 	err := row.Scan(
@@ -292,8 +332,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 type RegisterUserParams struct {
 	Username     string
 	PasswordHash string
-	Email        pgtype.Text
-	Phone        pgtype.Text
+	Email        string
+	Phone        string
 	Role         pgtype.Text
 	IsActive     pgtype.Bool
 	FirstName    pgtype.Text
@@ -331,8 +371,8 @@ type UpdateUserParams struct {
 	ID           int32
 	Username     string
 	PasswordHash string
-	Email        pgtype.Text
-	Phone        pgtype.Text
+	Email        string
+	Phone        string
 	Role         pgtype.Text
 	FirstName    pgtype.Text
 	LastName     pgtype.Text

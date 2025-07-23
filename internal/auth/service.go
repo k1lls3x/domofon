@@ -2,73 +2,68 @@ package auth
 
 import (
 	"context"
-
 	"errors"
-
 	"domofon/internal/db"
+	"domofon/internal/verification"
 	"golang.org/x/crypto/bcrypt"
-	"sync"
-	"time"
 )
 
 var (
 	ErrInvalidOldPassword = errors.New("invalid old password")
+	ErrInvalidResetToken  = errors.New("invalid or expired reset token")
+	ErrPhoneTaken         = errors.New("пользователь с таким номером телефона уже существует")
+	ErrUsernameTaken      = errors.New("пользователь с таким username уже существует")
+	ErrEmailTaken         = errors.New("пользователь с такой почтой уже зарегистрирован")
 )
 
-// AuthService хранит репозиторий и SMS-шлюз
+type UserRepository interface {
+	RegisterUser(ctx context.Context, params db.RegisterUserParams) error
+	GetUserByPhone(ctx context.Context, phone string) (*db.User, error)
+	ChangePasswordByPhone(ctx context.Context, phone, newHash string) error
+	IsPhoneTaken(ctx context.Context, phone string) (bool, error)
+	IsUsernameTaken(ctx context.Context, username string) (bool, error)
+	IsEmailTaken(ctx context.Context, email string) (bool, error)
+}
+
 type AuthService struct {
-	repo            Auth
-	sms             SMSSender
-	verifiedPhones  sync.Map
+	repo         UserRepository
+	verification verification.Service
 }
 
-func NewAuthService(repo Auth, sms SMSSender) *AuthService {
-	return &AuthService{repo: repo, sms: sms}
+func NewAuthService(repo UserRepository, verification verification.Service) *AuthService {
+	return &AuthService{
+		repo:         repo,
+		verification: verification,
+	}
 }
 
-// === Хеширование пароля ===
-
-func (s *AuthService) HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 12)
-	return string(bytes), err
-}
-
-func (s *AuthService) CheckPasswordHash(password, hash string) bool {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
-}
-
-// === Регистрация ===
-
+// Регистрация пользователя
 func (s *AuthService) Register(ctx context.Context, params db.RegisterUserParams) error {
-	phoneTaken, err := s.IsPhoneTaken(ctx, params.Phone.String)
+	phoneTaken, err := s.repo.IsPhoneTaken(ctx, params.Phone)
 	if err != nil {
 		return err
 	}
 	if phoneTaken {
-		return errors.New("пользователь с таким номером телефона уже существует")
+		return ErrPhoneTaken
 	}
-
-	usernameTaken, err := s.IsUsernameTaken(ctx, params.Username)
+	usernameTaken, err := s.repo.IsUsernameTaken(ctx, params.Username)
 	if err != nil {
 		return err
 	}
 	if usernameTaken {
-		return errors.New("пользователь с таким username уже существует")
+		return ErrUsernameTaken
 	}
-
+	emailTaken, err := s.repo.IsEmailTaken(ctx, params.Email)
+	if err != nil {
+		return err
+	}
+	if emailTaken {
+		return ErrEmailTaken
+	}
 	return s.repo.RegisterUser(ctx, params)
 }
 
-func (s *AuthService) IsPhoneTaken(ctx context.Context, phone string) (bool, error) {
-	return s.repo.IsPhoneTaken(ctx, phone)
-}
-
-func (s *AuthService) IsUsernameTaken(ctx context.Context, username string) (bool, error) {
-	return s.repo.IsUsernameTaken(ctx, username)
-}
-
-// === Логин / смена пароля внутри профиля ===
-
+// Авторизация по телефону
 func (s *AuthService) AuthorizeByPhone(ctx context.Context, phone, password string) (*db.User, bool) {
 	user, err := s.repo.GetUserByPhone(ctx, phone)
 	if err != nil || user == nil {
@@ -80,6 +75,17 @@ func (s *AuthService) AuthorizeByPhone(ctx context.Context, phone, password stri
 	return user, true
 }
 
+// Проверка, занят ли телефон
+func (s *AuthService) IsPhoneTaken(ctx context.Context, phone string) (bool, error) {
+	return s.repo.IsPhoneTaken(ctx, phone)
+}
+
+// Проверка, занят ли username
+func (s *AuthService) IsUsernameTaken(ctx context.Context, username string) (bool, error) {
+	return s.repo.IsUsernameTaken(ctx, username)
+}
+
+// Смена пароля по телефону (с проверкой oldPassword)
 func (s *AuthService) ChangePasswordByPhone(ctx context.Context, phone, oldPassword, newPassword string) error {
 	user, err := s.repo.GetUserByPhone(ctx, phone)
 	if err != nil || user == nil {
@@ -95,63 +101,53 @@ func (s *AuthService) ChangePasswordByPhone(ctx context.Context, phone, oldPassw
 	return s.repo.ChangePasswordByPhone(ctx, phone, newHash)
 }
 
-// === Вспомогательные для сброса пароля ===
-
-func (s *AuthService) markPhoneVerified(phone string) {
-	s.verifiedPhones.Store(phone, time.Now().Add(5*time.Minute))
+// Хеширование пароля
+func (s *AuthService) HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	return string(bytes), err
 }
 
-func (s *AuthService) IsPhoneVerifiedForReset(ctx context.Context, phone string) bool {
-	val, ok := s.verifiedPhones.Load(phone)
-	if !ok {
-		return false
-	}
-	exp, ok := val.(time.Time)
-	if !ok || time.Now().After(exp) {
-		s.verifiedPhones.Delete(phone)
-		return false
-	}
-	return true
+// Проверка пароля
+func (s *AuthService) CheckPasswordHash(password, hash string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
 
-func (s *AuthService) ClearPhoneVerifiedForReset(ctx context.Context, phone string) {
-	s.verifiedPhones.Delete(phone)
-}
-// === Отправка кода для регистрации ===
-
+// Отправка SMS-кода для регистрации
 func (s *AuthService) SendRegistrationCode(ctx context.Context, phone string) error {
-	code := generate4DigitCode()
-	expires := time.Now().Add(5 * time.Minute)
-	if err := s.repo.UpsertPhoneVerificationToken(ctx, phone, code, expires); err != nil {
+	phoneTaken, err := s.repo.IsPhoneTaken(ctx, phone)
+	if err != nil {
 		return err
 	}
-	return s.sms.SendSMS(phone, "Код для регистрации: "+code)
+	if phoneTaken {
+		return ErrPhoneTaken
+	}
+	return s.verification.SendVerificationCode(ctx, phone)
 }
 
-// === Отправка кода для сброса пароля ===
-
-func (s *AuthService) RequestPhoneVerification(ctx context.Context, phone string) error {
-	// 1) Проверяем, что номер есть в базе
+// Отправка кода сброса пароля
+func (s *AuthService) RequestPasswordResetByPhone(ctx context.Context, phone string) error {
 	user, err := s.repo.GetUserByPhone(ctx, phone)
 	if err != nil || user == nil {
-		return errors.New("пользователь с таким телефоном не найден")
+		// Не палим, есть ли пользователь с этим телефоном
+		return nil
 	}
-
-	// 2) Генерируем и сохраняем код
-	code := generate4DigitCode()
-	expires := time.Now().Add(5 * time.Minute)
-	if err := s.repo.UpsertPhoneVerificationToken(ctx, phone, code, expires); err != nil {
-		return err
-	}
-
-	// 3) Отправляем SMS
-	if err := s.sms.SendSMS(phone, "Код для сброса пароля: "+code); err != nil {
-		return err
-	}
-
-	// 4) Отмечаем телефон как верифицированный для сброса (TTL 5 минут)
-	s.markPhoneVerified(phone)
-	return nil
+	return s.verification.SendVerificationCode(ctx, phone)
 }
 
+// Проверка SMS-кода (универсально — и для сброса, и для регистрации)
+func (s *AuthService) VerifyPhoneCode(ctx context.Context, phone, code string) error {
+	return s.verification.VerifyCode(ctx, phone, code)
+}
 
+// Сброс пароля после подтверждения по SMS
+func (s *AuthService) ResetPasswordByPhone(ctx context.Context, phone, newPassword string) error {
+	user, err := s.repo.GetUserByPhone(ctx, phone)
+	if err != nil || user == nil {
+		return errors.New("пользователь не найден")
+	}
+	newHash, err := s.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	return s.repo.ChangePasswordByPhone(ctx, phone, newHash)
+}
