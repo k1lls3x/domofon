@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, TextInput
+  View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, TextInput,ScrollView
 } from 'react-native';
 import MaskInput from 'react-native-mask-input';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from './Theme.Context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { login } from './rest';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const PHONE_MASK = ['+','7',' ', '(', /\d/,/\d/,/\d/,')',' ',/\d/,/\d/,/\d/,'-',/\d/,/\d/,'-',/\d/,/\d/];
 
 interface Props {
   onRegister: () => void;
   onForgot: () => void;
+  onLoginSuccess: () => void;
 }
 
-export const LoginForm: React.FC<Props> = ({ onRegister, onForgot }) => {
-  const { theme } = useTheme();
+export const LoginForm: React.FC<Props> = ({ onRegister, onForgot, onLoginSuccess }) => {
+   const { theme } = useTheme();
   const [phone, setPhone] = useState('');
   const [pass, setPass] = useState('');
   const [hide, setHide] = useState(true);
@@ -26,48 +27,95 @@ export const LoginForm: React.FC<Props> = ({ onRegister, onForgot }) => {
   const digits = phone.replace(/\D/g, '');
   const valid = digits.length === 11 && pass.length > 0;
 
-  const onSubmit = async () => {
-    if (!valid) return;
-    setLoading(true);
-    setErr('');
-    try {
-      await login(digits, pass);
-      Alert.alert('Успешный вход', 'Вы успешно вошли в аккаунт!');
-    } catch (e: any) {
-      setErr('Неверный номер телефона или пароль');
-      Alert.alert('Ошибка входа', 'Неверный номер телефона или пароль');
-    } finally {
-      setLoading(false);
-    }
-  };
+const onSubmit = async () => {
+  if (!valid) return;
 
-  return (
-    <View style={styles.outer}>
+  setLoading(true);
+  setErr('');
+
+  try {
+    const response = await login(digits, pass);
+
+    if (response?.access_token && response?.refresh_token) {
+      await AsyncStorage.setItem('access_token', response.access_token);
+      await AsyncStorage.setItem('refresh_token', response.refresh_token);
+      onLoginSuccess();  // переход в приватную часть
+    } else {
+      setErr('Ошибка авторизации: некорректный ответ сервера');
+      Alert.alert('Ошибка входа', 'Некорректный ответ сервера');
+    }
+
+  } catch (e: any) {
+    setErr('Неверный номер телефона или пароль');
+    Alert.alert('Ошибка входа', 'Неверный номер телефона или пароль');
+
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+return (
+  <ScrollView
+    contentContainerStyle={[
+      styles.screen,
+      { backgroundColor: theme.background }
+    ]}
+    keyboardShouldPersistTaps="handled"
+  >
+    <View
+      style={[
+        styles.outer,
+        {
+          backgroundColor: theme.cardBg,   // динамический фон
+          shadowColor: theme.shadow,       // динамическая тень
+        }
+      ]}
+    >
       {/* Аватар */}
       <View style={styles.avatarWrap}>
-        <MaterialCommunityIcons name="account-circle" size={54} color="#ddd" />
+        <MaterialCommunityIcons
+          name="account-circle"
+          size={54}
+          color={theme.icon}
+        />
       </View>
+
       {/* Заголовок и описание */}
-      <Text style={styles.sysTitle}>Домофон</Text>
-      <Text style={styles.sysWelcome}>Добро пожаловать! Войдите в свой аккаунт.</Text>
+      <Text style={[styles.sysTitle, { color: theme.text }]}>
+        Домофон
+      </Text>
+      <Text style={[styles.sysWelcome, { color: theme.subtext }]}>
+        Добро пожаловать! Войдите в свой аккаунт.
+      </Text>
+
       {/* Форма */}
       <MaskInput
         style={[
           styles.input,
-          { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
+          {
+            backgroundColor: theme.inputBg,
+            borderColor: theme.inputBorder,
+            color: theme.text,
+          }
         ]}
         placeholder="Телефон"
+        placeholderTextColor={theme.subtext}
         value={phone}
         onChangeText={setPhone}
         mask={PHONE_MASK}
         keyboardType="phone-pad"
-        placeholderTextColor={theme.subtext}
       />
+
       <View style={styles.inputWrapper}>
         <TextInput
           style={[
             styles.input,
-            { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text }
+            {
+              backgroundColor: theme.inputBg,
+              borderColor: theme.inputBorder,
+              color: theme.text,
+            }
           ]}
           placeholder="Пароль"
           placeholderTextColor={theme.subtext}
@@ -76,46 +124,65 @@ export const LoginForm: React.FC<Props> = ({ onRegister, onForgot }) => {
           secureTextEntry={hide}
         />
         <TouchableOpacity style={styles.eye} onPress={() => setHide(h => !h)}>
-          <MaterialCommunityIcons name={hide ? 'eye-off-outline' : 'eye-outline'} size={22} color={theme.icon} />
+          <MaterialCommunityIcons
+            name={hide ? 'eye-off-outline' : 'eye-outline'}
+            size={22}
+            color={theme.icon}
+          />
         </TouchableOpacity>
       </View>
-      {err.length > 0 && <Text style={[styles.error, { color: '#e43a4b' }]}>{err}</Text>}
 
-      {/* Красивая кнопка с градиентом */}
+      {err.length > 0 && (
+        <Text style={[styles.error, { color: '#e43a4b' }]}>
+          {err}
+        </Text>
+      )}
+
+      {/* Кнопка Войти */}
       <TouchableOpacity
-        style={[styles.btn, !valid ? { opacity: 0.7 } : {}]}
+        style={[styles.btn, !valid && { opacity: 0.7 }]}
         onPress={onSubmit}
         disabled={!valid || loading}
-        activeOpacity={valid ? 0.8 : 1}
+        activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#2585f4', '#1b2b64']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          style={[styles.btnBg, !valid && { opacity: 0.8 }]}
+          colors={[theme.gradientStart, theme.gradientEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.btnBg, !valid && { opacity: 0.7 }]}
         >
-          {loading
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.btnText}>Войти</Text>
-          }
+          {loading ? (
+            <ActivityIndicator color={theme.btnText} />
+          ) : (
+            <Text style={[styles.btnText, { color: theme.btnText }]}>
+              Войти
+            </Text>
+          )}
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* Две ссылки снизу: забыли пароль слева, регистрация справа */}
+      {/* Ссылки */}
       <View style={styles.bottomRow}>
         <TouchableOpacity onPress={onForgot} style={{ flex: 1 }}>
-          <Text style={styles.linkLeft}>Забыли пароль?</Text>
+          <Text style={[styles.linkLeft, { color: theme.link }]}>
+            Забыли пароль?
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={onRegister} style={{ flex: 1 }}>
-          <Text style={styles.linkRight}>Регистрация</Text>
+          <Text style={[styles.linkRight, { color: theme.link }]}>
+            Регистрация
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
-  );
+  </ScrollView>
+);
+
 };
 
 const styles = StyleSheet.create({
   outer: {
-    backgroundColor: "#fff", // ВСЕГДА белый
+
     borderRadius: 26,
     padding: 28,
     width: '100%',
@@ -128,6 +195,11 @@ const styles = StyleSheet.create({
     elevation: 9,
     marginTop: 0,
   },
+   screen: {
+   flexGrow: 1,
+  justifyContent: 'center',
+  padding: 16,
+ },
   avatarWrap: {
     marginTop: 2,
     marginBottom: 7,

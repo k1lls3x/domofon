@@ -1,16 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import FlashMessage from "react-native-flash-message";
-import { AuthScreen } from './components/Auth/AuthScreen';
-import { ThemeProvider } from './components/Theme.Context'; 
+import { ThemeProvider } from './components/Theme.Context';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context'; 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+// Импортируй свои экраны
+import { AuthScreen } from './components/Auth/AuthScreen';
+import MainForm from './components/MainForm'; // путь к твоему MainForm
 
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
         <StatusBar style="auto" />
-        <AuthScreen />
+        {isLoggedIn ? (
+          <MainForm
+            onLogout={() => {
+              setIsLoggedIn(false);
+            }}
+          />
+        ) : (
+          <AuthScreen
+            onLoginSuccess={() => setIsLoggedIn(true)}
+          />
+        )}
         <FlashMessage position="top" />
       </ThemeProvider>
     </SafeAreaProvider>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, TextInput, KeyboardAvoidingView, Platform
+  View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, TextInput,
 } from 'react-native';
 import MaskInput from 'react-native-mask-input';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -69,24 +69,24 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
   const [codeTimeout, setCodeTimeout] = useState(RESEND_TIMEOUT);
   const codeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-useEffect(() => {
-  if (step === 1) {
-    setCodeTimeout(RESEND_TIMEOUT);
-    if (codeTimerRef.current) clearInterval(codeTimerRef.current);
-    codeTimerRef.current = setInterval(() => {
-      setCodeTimeout((prev) => {
-        if (prev <= 1) {
-          if (codeTimerRef.current) clearInterval(codeTimerRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }
-  return () => {
-    if (codeTimerRef.current) clearInterval(codeTimerRef.current);
-  };
-}, [step]);
+  useEffect(() => {
+    if (step === 1) {
+      setCodeTimeout(RESEND_TIMEOUT);
+      if (codeTimerRef.current) clearInterval(codeTimerRef.current);
+      codeTimerRef.current = setInterval(() => {
+        setCodeTimeout((prev) => {
+          if (prev <= 1) {
+            if (codeTimerRef.current) clearInterval(codeTimerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (codeTimerRef.current) clearInterval(codeTimerRef.current);
+    };
+  }, [step]);
 
   const resendTimeoutText = codeTimeout > 0
     ? `Запросить код повторно (${codeTimeout < 10 ? '0' : ''}${codeTimeout})`
@@ -201,68 +201,75 @@ useEffect(() => {
 
   // ---------- UI ----------
   return (
-    <View style={styles.outer}>
+    <View
+      style={[
+        styles.outer,
+        {
+          backgroundColor: theme.cardBg,
+          shadowColor: theme.shadow,
+        }
+      ]}
+    >
       {/* Аватар */}
       <View style={styles.avatarWrap}>
-        <MaterialCommunityIcons name="account-circle" size={54} color="#ddd" />
+        <MaterialCommunityIcons name="account-circle" size={54} color={theme.icon} />
       </View>
       {/* Заголовок и описание */}
-      <Text style={styles.sysTitle}>Домофон</Text>
-      <Text style={styles.sysWelcome}>Создайте свой аккаунт</Text>
+      <Text style={[styles.sysTitle, { color: theme.text }]}>Домофон</Text>
+      <Text style={[styles.sysWelcome, { color: theme.subtext }]}>Создайте свой аккаунт</Text>
 
-     {step === 0 && (
-  <>
-    <View style={styles.inputWrapper}>
-      <MaterialCommunityIcons
-        name="phone-outline"
-        size={22}
-        color="#b4bac3"
-        style={styles.inputIcon}
-      />
-      <MaskInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: theme.inputBg,
-            borderColor: theme.inputBorder,
-            color: theme.text,
-            paddingLeft: 46,
-          },
-        ]}
-        placeholder="Телефон"
-        value={phone}
-        onChangeText={setPhone}
-        mask={PHONE_MASK}
-        keyboardType="phone-pad"
-        placeholderTextColor={theme.subtext}
-      />
-    </View>
-    {err.length > 0 && <Text style={[styles.error, { color: '#e43a4b' }]}>{err}</Text>}
+      {step === 0 && (
+        <>
+          <View style={styles.inputWrapper}>
+            <MaterialCommunityIcons
+              name="phone-outline"
+              size={22}
+              color={theme.icon}
+              style={styles.inputIcon}
+            />
+            <MaskInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.inputBg,
+                  borderColor: theme.inputBorder,
+                  color: theme.text,
+                  paddingLeft: 46,
+                },
+              ]}
+              placeholder="Телефон"
+              value={phone}
+              onChangeText={setPhone}
+              mask={PHONE_MASK}
+              keyboardType="phone-pad"
+              placeholderTextColor={theme.subtext}
+            />
+          </View>
+          {err.length > 0 && <Text style={[styles.error, { color: theme.error ?? '#e43a4b' }]}>{err}</Text>}
 
-    <TouchableOpacity
-      style={[styles.btn, !validStep0 ? { opacity: 0.7 } : {}]}
-      onPress={onSendPhone}
-      disabled={!validStep0 || loading}
-      activeOpacity={validStep0 ? 0.8 : 1}
-    >
-      <LinearGradient
-        colors={['#2585f4', '#1b2b64']}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-        style={[styles.btnBg, !validStep0 && { opacity: 0.8 }]}
-      >
-        {loading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.btnText}>Далее</Text>
-        }
-      </LinearGradient>
-    </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.btn, !validStep0 ? { opacity: 0.7 } : {}]}
+            onPress={onSendPhone}
+            disabled={!validStep0 || loading}
+            activeOpacity={validStep0 ? 0.8 : 1}
+          >
+            <LinearGradient
+              colors={[theme.gradientStart, theme.gradientEnd]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={[styles.btnBg, !validStep0 && { opacity: 0.8 }]}
+            >
+              {loading
+                ? <ActivityIndicator color={theme.btnText} />
+                : <Text style={[styles.btnText, { color: theme.btnText }]}>Далее</Text>
+              }
+            </LinearGradient>
+          </TouchableOpacity>
 
-    <TouchableOpacity onPress={onLogin} style={{ marginTop: 8 }}>
-      <Text style={styles.linkRight}>Уже есть аккаунт?</Text>
-    </TouchableOpacity>
-  </>
-)}
-
+          <TouchableOpacity onPress={onLogin} style={{ marginTop: 8 }}>
+            <Text style={[styles.linkRight, { color: theme.link }]}>Уже есть аккаунт?</Text>
+          </TouchableOpacity>
+        </>
+      )}
 
       {step === 1 && (
         <>
@@ -278,7 +285,7 @@ useEffect(() => {
             maxLength={4}
             placeholderTextColor={theme.subtext}
           />
-          {err.length > 0 && <Text style={[styles.error, { color: '#e43a4b' }]}>{err}</Text>}
+          {err.length > 0 && <Text style={[styles.error, { color: theme.error ?? '#e43a4b' }]}>{err}</Text>}
 
           <TouchableOpacity
             style={[styles.btn, !validStep1 ? { opacity: 0.7 } : {}]}
@@ -287,31 +294,30 @@ useEffect(() => {
             activeOpacity={validStep1 ? 0.8 : 1}
           >
             <LinearGradient
-              colors={['#2585f4', '#1b2b64']}
+              colors={[theme.gradientStart, theme.gradientEnd]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={[styles.btnBg, !validStep1 && { opacity: 0.8 }]}
             >
               {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.btnText}>Далее</Text>
+                ? <ActivityIndicator color={theme.btnText} />
+                : <Text style={[styles.btnText, { color: theme.btnText }]}>Далее</Text>
               }
             </LinearGradient>
           </TouchableOpacity>
 
-        <TouchableOpacity
-  onPress={onResendCode}
-  disabled={loading || codeTimeout > 0}
-  activeOpacity={codeTimeout > 0 ? 1 : 0.8}
-  style={{ alignSelf: 'center', marginTop: 6 }}  // по центру!
->
-  <Text style={[
-    styles.resend,                                 // стиль resend из styles
-    codeTimeout > 0 ? { color: '#bcc3cf' } : { color: '#2585f4' }
-  ]}>
-    {resendTimeoutText}
-  </Text>
-</TouchableOpacity>
-
+          <TouchableOpacity
+            onPress={onResendCode}
+            disabled={loading || codeTimeout > 0}
+            activeOpacity={codeTimeout > 0 ? 1 : 0.8}
+            style={{ alignSelf: 'center', marginTop: 6 }}
+          >
+            <Text style={[
+              styles.resend,
+              codeTimeout > 0 ? { color: theme.subtext } : { color: theme.link }
+            ]}>
+              {resendTimeoutText}
+            </Text>
+          </TouchableOpacity>
         </>
       )}
 
@@ -349,7 +355,7 @@ useEffect(() => {
             autoCapitalize="none"
             placeholderTextColor={theme.subtext}
           />
-          {err.length > 0 && <Text style={[styles.error, { color: '#e43a4b' }]}>{err}</Text>}
+          {err.length > 0 && <Text style={[styles.error, { color: theme.error ?? '#e43a4b' }]}>{err}</Text>}
 
           <TouchableOpacity
             style={[styles.btn, !validStep2 ? { opacity: 0.7 } : {}]}
@@ -358,11 +364,11 @@ useEffect(() => {
             activeOpacity={validStep2 ? 0.8 : 1}
           >
             <LinearGradient
-              colors={['#2585f4', '#1b2b64']}
+              colors={[theme.gradientStart, theme.gradientEnd]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={[styles.btnBg, !validStep2 && { opacity: 0.8 }]}
             >
-              <Text style={styles.btnText}>Далее</Text>
+              <Text style={[styles.btnText, { color: theme.btnText }]}>Далее</Text>
             </LinearGradient>
           </TouchableOpacity>
         </>
@@ -371,7 +377,7 @@ useEffect(() => {
       {step === 3 && (
         <>
           {userErr.length > 0 && (
-            <Text style={{ color: '#e43a4b', marginBottom: 6, marginLeft: 2, fontSize: 14 }}>
+            <Text style={{ color: theme.error ?? '#e43a4b', marginBottom: 6, marginLeft: 2, fontSize: 14 }}>
               {userErr}
             </Text>
           )}
@@ -431,7 +437,7 @@ useEffect(() => {
             <PasswordRule ok={pass.symbol} label="Есть спецсимвол" />
             <PasswordRule ok={password === password2 && password2.length > 0} label="Пароли совпадают" />
           </View>
-          {err.length > 0 && <Text style={[styles.error, { color: '#e43a4b' }]}>{err}</Text>}
+          {err.length > 0 && <Text style={[styles.error, { color: theme.error ?? '#e43a4b' }]}>{err}</Text>}
 
           <TouchableOpacity
             style={[styles.btn, !validStep3 ? { opacity: 0.7 } : {}]}
@@ -440,34 +446,31 @@ useEffect(() => {
             activeOpacity={validStep3 ? 0.8 : 1}
           >
             <LinearGradient
-              colors={['#2585f4', '#1b2b64']}
+              colors={[theme.gradientStart, theme.gradientEnd]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={[styles.btnBg, !validStep3 && { opacity: 0.8 }]}
             >
               {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.btnText}>Зарегистрироваться</Text>
+                ? <ActivityIndicator color={theme.btnText} />
+                : <Text style={[styles.btnText, { color: theme.btnText }]}>Зарегистрироваться</Text>
               }
             </LinearGradient>
           </TouchableOpacity>
         </>
       )}
 
-      <Text style={styles.footer}>© 2025 Домофон</Text>
+      <Text style={[styles.footer, { color: theme.subtext }]}>© 2025 Домофон</Text>
     </View>
   );
 };
 
-// Стили полностью повторяют LoginForm
 const styles = StyleSheet.create({
   outer: {
-    backgroundColor: "#fff",
     borderRadius: 26,
     padding: 28,
-    width: '100%',
+    width: '97%',
     alignSelf: 'center',
     alignItems: 'center',
-    shadowColor: '#23254b',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.11,
     shadowRadius: 24,
@@ -485,12 +488,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 4,
-    color: '#2d2d2d',
     letterSpacing: 0.01,
   },
   sysWelcome: {
     fontSize: 15,
-    color: '#888',
     marginBottom: 14,
     textAlign: 'center',
   },
@@ -504,12 +505,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     width: '100%',
   },
-inputWrapper: {
-  position: 'relative',
-  marginBottom: 11,
-  width: '100%',
-  justifyContent: 'center',
-},
+  inputWrapper: {
+    position: 'relative',
+    marginBottom: 11,
+    width: '100%',
+    justifyContent: 'center',
+  },
   eye: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' },
   btn: {
     width: '100%',
@@ -530,13 +531,11 @@ inputWrapper: {
   btnText: {
     fontWeight: 'bold',
     fontSize: 18,
-    color: '#fff',
     letterSpacing: 0.04,
   },
   linkRight: {
     fontWeight: '600',
     fontSize: 15.5,
-    color: '#2585f4',
     textAlign: 'right',
     paddingRight: 3,
     paddingTop: 2,
@@ -546,7 +545,6 @@ inputWrapper: {
     marginTop: 22,
     alignSelf: 'center',
     fontSize: 13,
-    color: '#bcc3cf',
   },
   resend: {
     fontWeight: '600',
@@ -555,20 +553,23 @@ inputWrapper: {
     alignSelf: 'center',
     marginTop: 6,
   },
-
   inputIcon: {
     position: 'absolute',
     left: 16,
     zIndex: 2,
-    top: 13, // Чуть выравнивает по вертикали для MaskInput/TextInput
+    top: 13,
   },
 });
 
-const PasswordRule: React.FC<{ ok: boolean; label: string }> = ({ ok, label }) => (
-  <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 2, width: '100%' }}>
-    <MaterialCommunityIcons name={ok ? "check-circle-outline" : "close-circle-outline"} size={17} color={ok ? "#41d67a" : "#e43a4b"} />
-    <Text style={{color: ok ? "#41d67a" : "#e43a4b", marginLeft: 5, fontSize: 14}}>{label}</Text>
-  </View>
-);
+// PasswordRule также с поддержкой theme
+const PasswordRule: React.FC<{ ok: boolean; label: string }> = ({ ok, label }) => {
+  const { theme } = useTheme();
+  return (
+    <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 2, width: '100%' }}>
+      <MaterialCommunityIcons name={ok ? "check-circle-outline" : "close-circle-outline"} size={17} color={ok ? theme.link : (theme.error ?? "#e43a4b")} />
+      <Text style={{color: ok ? theme.link : (theme.error ?? "#e43a4b"), marginLeft: 5, fontSize: 14}}>{label}</Text>
+    </View>
+  );
+};
 
 export default RegisterForm;
