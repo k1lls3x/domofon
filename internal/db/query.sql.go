@@ -117,6 +117,16 @@ func (q *Queries) DeletePhoneVerificationToken(ctx context.Context, phone string
 	return err
 }
 
+const deleteRefreshToken = `-- name: DeleteRefreshToken :exec
+DELETE FROM refresh_tokens
+WHERE token = $1
+`
+
+func (q *Queries) DeleteRefreshToken(ctx context.Context, token string) error {
+	_, err := q.db.Exec(ctx, deleteRefreshToken, token)
+	return err
+}
+
 const deleteUser = `-- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1
 `
@@ -162,6 +172,25 @@ func (q *Queries) GetPhoneVerificationTokenByPhone(ctx context.Context, phone st
 		&i.VerificationCode,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getRefreshToken = `-- name: GetRefreshToken :one
+SELECT id, user_id, token, jti, expires_at
+FROM refresh_tokens
+WHERE token = $1
+`
+
+func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshToken, error) {
+	row := q.db.QueryRow(ctx, getRefreshToken, token)
+	var i RefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.Jti,
+		&i.ExpiresAt,
 	)
 	return i, err
 }
@@ -350,6 +379,28 @@ func (q *Queries) RegisterUser(ctx context.Context, arg RegisterUserParams) erro
 		arg.IsActive,
 		arg.FirstName,
 		arg.LastName,
+	)
+	return err
+}
+
+const saveRefreshToken = `-- name: SaveRefreshToken :exec
+INSERT INTO refresh_tokens (user_id, token, jti, expires_at)
+VALUES ($1, $2, $3, $4)
+`
+
+type SaveRefreshTokenParams struct {
+	UserID    int32
+	Token     string
+	Jti       pgtype.Text
+	ExpiresAt pgtype.Timestamp
+}
+
+func (q *Queries) SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenParams) error {
+	_, err := q.db.Exec(ctx, saveRefreshToken,
+		arg.UserID,
+		arg.Token,
+		arg.Jti,
+		arg.ExpiresAt,
 	)
 	return err
 }

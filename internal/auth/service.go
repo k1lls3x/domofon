@@ -6,6 +6,7 @@ import (
 	"domofon/internal/db"
 	"domofon/internal/verification"
 	"golang.org/x/crypto/bcrypt"
+	"time"
 )
 
 var (
@@ -128,8 +129,7 @@ func (s *AuthService) SendRegistrationCode(ctx context.Context, phone string) er
 func (s *AuthService) RequestPasswordResetByPhone(ctx context.Context, phone string) error {
 	user, err := s.repo.GetUserByPhone(ctx, phone)
 	if err != nil || user == nil {
-		// Не палим, есть ли пользователь с этим телефоном
-		return nil
+		return errors.New("номер не найден")
 	}
 	return s.verification.SendVerificationCode(ctx, phone)
 }
@@ -150,4 +150,28 @@ func (s *AuthService) ResetPasswordByPhone(ctx context.Context, phone, newPasswo
 		return err
 	}
 	return s.repo.ChangePasswordByPhone(ctx, phone, newHash)
+}
+
+func (s *AuthService) SaveRefreshToken(ctx context.Context, userID int64, token, jti string, expiresAt time.Time) error {
+    repo, ok := s.repo.(*AuthRepository)
+    if !ok {
+        return errors.New("репозиторий не поддерживает refresh-токены")
+    }
+    return repo.SaveRefreshToken(ctx, userID, token, jti, expiresAt)
+}
+
+func (s *AuthService) GetRefreshToken(ctx context.Context, token string) (*db.RefreshToken, error) {
+    repo, ok := s.repo.(*AuthRepository)
+    if !ok {
+        return nil, errors.New("репозиторий не поддерживает refresh-токены")
+    }
+    return repo.GetRefreshToken(ctx, token)
+}
+
+func (s *AuthService) DeleteRefreshToken(ctx context.Context, token string) error {
+    repo, ok := s.repo.(*AuthRepository)
+    if !ok {
+        return errors.New("репозиторий не поддерживает refresh-токены")
+    }
+    return repo.DeleteRefreshToken(ctx, token)
 }

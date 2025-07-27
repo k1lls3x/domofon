@@ -17,7 +17,6 @@ type Service interface {
 	SendVerificationCode(ctx context.Context, phone string) error
 	ResendVerificationCode(ctx context.Context, phone string) error
 	VerifyCode(ctx context.Context, phone, code string) error
-
 }
 
 type serviceImpl struct {
@@ -77,12 +76,16 @@ func (s *serviceImpl) VerifyCode(ctx context.Context, phone, code string) error 
 func (s *serviceImpl) UpsertToken(ctx context.Context, phone, code string, expiresAt time.Time) error {
 	return s.repo.UpsertToken(ctx, phone, code, expiresAt)
 }
+
 func (s *serviceImpl) GetToken(ctx context.Context, phone, code string) (*db.PhoneVerificationToken, error) {
 	return s.repo.GetToken(ctx, phone, code)
 }
+
 func (s *serviceImpl) GetTokenByPhone(ctx context.Context, phone string) (*db.PhoneVerificationToken, error) {
 	return s.repo.GetTokenByPhone(ctx, phone)
 }
+
 func (s *serviceImpl) DeleteToken(ctx context.Context, phone string) error {
 	return s.repo.DeleteToken(ctx, phone)
 }
+

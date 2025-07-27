@@ -18,6 +18,8 @@ const PHONE_MASK = [
   /\d/,/\d/,/\d/,'-',/\d/,/\d/,'-',/\d/,/\d/
 ];
 
+const RESEND_TIMEOUT = 60;
+
 const isLatin = (str: string) =>
   /^[A-Za-z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]+$/.test(str);
 
@@ -54,13 +56,13 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
   const digits = phone.replace(/\D/g, '');
   const pass = checkPassword(newPass);
 
-  // --- Таймер ---
+  // Таймер повторной отправки кода
   const [secondsLeft, setSecondsLeft] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (step === 1) {
-      setSecondsLeft(300); // 5 минут
+      setSecondsLeft(RESEND_TIMEOUT);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setSecondsLeft(s => {
@@ -75,12 +77,6 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
     return () => { timerRef.current && clearInterval(timerRef.current); };
   }, [step]);
 
-  const formatTimer = () => {
-    const m = Math.floor(secondsLeft / 60);
-    const s = secondsLeft % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
   const handleForgot = async () => {
     setErr('');
     if (digits.length !== 11) {
@@ -92,7 +88,6 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
       await requestPasswordResetCode(digits);
       setStep(1);
       setCode('');
-      // Не показываем Alert!
     } catch (e: any) {
       setErr(formatErr(e, 'phone'));
     } finally {
@@ -114,6 +109,31 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
       Alert.alert('Код подтверждён', 'Введите новый пароль');
     } catch (e: any) {
       setErr(formatErr(e, 'code'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setErr('');
+    setLoading(true);
+    try {
+      await requestPasswordResetCode(digits);
+      setCode('');
+      setSecondsLeft(RESEND_TIMEOUT);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setSecondsLeft(s => {
+          if (s <= 1) {
+            timerRef.current && clearInterval(timerRef.current);
+            return 0;
+          }
+          return s - 1;
+        });
+      }, 1000);
+      Alert.alert('Код отправлен', 'Введите новый код из SMS');
+    } catch (e: any) {
+      setErr(formatErr(e, 'phone'));
     } finally {
       setLoading(false);
     }
@@ -145,13 +165,17 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
     }
   };
 
+  const resendTimeoutText = secondsLeft > 0
+    ? `Запросить код повторно (${secondsLeft < 10 ? '0' : ''}${secondsLeft})`
+    : 'Запросить код повторно';
+
   return (
     <View style={styles.outer}>
       <View style={styles.avatarWrap}>
         <MaterialCommunityIcons name="lock-outline" size={54} color="#ddd" />
       </View>
       <Text style={styles.sysTitle}>Восстановление пароля</Text>
-      <Text style={styles.sysWelcome}>Введите номер телефона</Text>
+
 
       {/* Шаг 0 — ввод телефона */}
       {step === 0 && (
@@ -205,19 +229,6 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
       {/* Шаг 1 — ввод кода */}
       {step === 1 && (
         <>
-          <Text
-            style={{
-              textAlign: 'left',
-              color: theme.subtext,
-              marginBottom: 6,
-              fontSize: 14,
-              fontWeight: '500',
-              alignSelf: 'flex-start',
-              marginLeft: 16,
-            }}
-          >
-            Время на ввод кода: {formatTimer()}
-          </Text>
           <TextInput
             style={[
               styles.input,
@@ -251,6 +262,20 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
                 : <Text style={styles.btnText}>Проверить код</Text>
               }
             </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleResendCode}
+            disabled={loading || secondsLeft > 0}
+            activeOpacity={secondsLeft > 0 ? 1 : 0.8}
+            style={{ alignSelf: 'center', marginTop: 6 }}
+          >
+            <Text style={[
+              styles.btnText,
+              { color: secondsLeft > 0 ? '#bcc3cf' : '#2585f4', fontSize: 15 }
+            ]}>
+              {resendTimeoutText}
+            </Text>
           </TouchableOpacity>
         </>
       )}
@@ -356,14 +381,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sysTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 4,
-    color: '#2d2d2d',
-    letterSpacing: 0.01,
-  },
+sysTitle: {
+  fontSize: 28,
+  fontWeight: 'bold',
+  textAlign: 'center',
+  marginBottom: 15, // увеличил с 4 до 20
+  color: '#2d2d2d',
+  letterSpacing: 0.01,
+},
+
   sysWelcome: {
     fontSize: 14,
     color: '#bcc3cf',

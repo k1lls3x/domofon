@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-
+  "domofon/internal/jwt" // Импортируй свой jwt-пакет
 	"github.com/jackc/pgx/v5/pgtype"
+	"time"
 )
 
 type AuthHandler struct {
@@ -73,12 +74,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 // Login godoc
 // @Summary Вход по номеру телефона и паролю
-// @Description Авторизация пользователя по телефону и паролю
+// @Description Авторизация пользователя по телефону и паролю. Возвращает пару access/refresh токенов.
 // @Tags auth
 // @Accept json
 // @Produce json
 // @Param input body auth.LoginRequest true "Данные для входа"
-// @Success 200 {object} auth.UserResponse "Пользователь авторизован"
+// @Success 200 {object} LoginResponse "Пользователь авторизован, токены выданы"
 // @Failure 400 {string} string "Некорректный JSON"
 // @Failure 401 {string} string "Неверный телефон или пароль"
 // @Router /auth/login [post]
@@ -99,8 +100,40 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	accessToken, jti, err := jwt.GenerateAccessToken(int64(user.ID))
+	if err != nil {
+		http.Error(w, "Ошибка генерации access token", http.StatusInternalServerError)
+		return
+	}
+	refreshToken, err := jwt.GenerateRefreshToken(int64(user.ID), jti)
+	if err != nil {
+		http.Error(w, "Ошибка генерации refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	// Сохраняем refresh токен в БД
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+	if err := h.auth.SaveRefreshToken(r.Context(), int64(user.ID), refreshToken, jti, expiresAt); err != nil {
+		http.Error(w, "Ошибка сохранения refresh токена", http.StatusInternalServerError)
+		return
+	}
+
+	resp := LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		User: UserResponse{
+			ID:        int64(user.ID),
+			Username:  user.Username,
+			Email:     user.Email,
+			Phone:     user.Phone,
+			Role:      user.Role.String,
+			FirstName: user.FirstName.String,
+			LastName:  user.LastName.String,
+		},
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // ChangePassword godoc
@@ -247,5 +280,87 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
+}
+
+// Refresh godoc
+// @Summary Обновить access/refresh токены
+// @Description Принимает refresh токен, возвращает новую пару access/refresh токенов.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body RefreshRequest true "Refresh токен"
+// @Success 200 {object} RefreshResponse "Новая пара токенов выдана"
+// @Failure 400 {string} string "Некорректный JSON"
+// @Failure 401 {string} string "Неверный или истёкший refresh токен"
+// @Router /auth/refresh [post]
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	var req RefreshRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
+		return
+	}
+
+	claims, err := jwt.ParseRefreshToken(req.RefreshToken)
+	if err != nil {
+		http.Error(w, "Неверный refresh токен", http.StatusUnauthorized)
+		return
+	}
+
+	rt, err := h.auth.GetRefreshToken(r.Context(), req.RefreshToken)
+	if err != nil || rt.ExpiresAt.Time.Before(time.Now()) || int64(rt.UserID) != claims.UserID {
+		http.Error(w, "Refresh токен не найден или истёк", http.StatusUnauthorized)
+		return
+	}
+
+	if err := h.auth.DeleteRefreshToken(r.Context(), req.RefreshToken); err != nil {
+		http.Error(w, "Ошибка при удалении старого refresh токена", http.StatusInternalServerError)
+		return
+	}
+
+	accessToken, jti, err := jwt.GenerateAccessToken(claims.UserID)
+	if err != nil {
+		http.Error(w, "Ошибка генерации access token", http.StatusInternalServerError)
+		return
+	}
+	newRefreshToken, err := jwt.GenerateRefreshToken(claims.UserID, jti)
+	if err != nil {
+		http.Error(w, "Ошибка генерации refresh token", http.StatusInternalServerError)
+		return
+	}
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+	if err := h.auth.SaveRefreshToken(r.Context(), claims.UserID, newRefreshToken, jti, expiresAt); err != nil {
+		http.Error(w, "Ошибка сохранения refresh токена", http.StatusInternalServerError)
+		return
+	}
+
+	resp := RefreshResponse{
+		AccessToken:  accessToken,
+		RefreshToken: newRefreshToken,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+// Logout godoc
+// @Summary Выйти из системы (logout)
+// @Description Удаляет refresh токен из БД, делая его невалидным. После этого все access токены с этим refresh станут неактуальны.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body RefreshRequest true "Refresh токен для удаления"
+// @Success 200 "Выход выполнен"
+// @Failure 400 {string} string "Некорректный JSON"
+// @Router /auth/logout [post]
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	var req RefreshRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Некорректный JSON", http.StatusBadRequest)
+		return
+	}
+	if err := h.auth.DeleteRefreshToken(r.Context(), req.RefreshToken); err != nil {
+		http.Error(w, "Ошибка выхода", http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }

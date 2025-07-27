@@ -4,11 +4,14 @@ import (
 	"domofon/internal/auth"
 	"domofon/internal/user"
 	"domofon/internal/verification"
+	"domofon/internal/db"
+	"domofon/internal/middleware"
+
+	"time"
+
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"time"
-		"domofon/internal/db"
-		 httpSwagger "github.com/swaggo/http-swagger"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func NewRouter(pool *pgxpool.Pool) *mux.Router {
@@ -18,7 +21,6 @@ func NewRouter(pool *pgxpool.Pool) *mux.Router {
 	userHandler := user.NewUserHandler(userService)
 
 	queries := db.New(pool)
-  // Подключаем Swagger UI по пути /swagger/
 
 	// Verification
 	verifRepo := verification.NewRepository(queries)
@@ -31,32 +33,38 @@ func NewRouter(pool *pgxpool.Pool) *mux.Router {
 	)
 
 	// --- Auth ---
-authRepo := auth.NewAuthRepository(pool)
+	authRepo := auth.NewAuthRepository(pool)
 	authService := auth.NewAuthService(authRepo, verifService)
 	authHandler := auth.NewAuthHandler(authService)
 
 	r := mux.NewRouter()
-    r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
-	// --- User routes ---
-	r.HandleFunc("/users",      userHandler.GetUsers).Methods("GET")
-	r.HandleFunc("/users",      userHandler.CreateUser).Methods("POST")
-	r.HandleFunc("/users/{id}", userHandler.UpdateUser).Methods("PUT")
-	r.HandleFunc("/users/{id}", userHandler.DeleteUser).Methods("DELETE")
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
-	// --- Auth routes ---
+	// --- Открытые ручки ---
 	// Регистрация (трёхшагово):
-	r.HandleFunc("/auth/request-registration-code", authHandler.RequestRegistrationCode).Methods("POST") // 1
-	r.HandleFunc("/auth/verify-phone",              authHandler.VerifyPhone).Methods("POST")             // 2
-	r.HandleFunc("/auth/register",                  authHandler.Register).Methods("POST")                // 3
-
+	r.HandleFunc("/auth/request-registration-code", authHandler.RequestRegistrationCode).Methods("POST")
+	r.HandleFunc("/auth/verify-phone",              authHandler.VerifyPhone).Methods("POST")
+	r.HandleFunc("/auth/register",                  authHandler.Register).Methods("POST")
 	r.HandleFunc("/auth/login",                     authHandler.Login).Methods("POST")
+	r.HandleFunc("/auth/forgot-password",           authHandler.ForgotPassword).Methods("POST")
+	r.HandleFunc("/auth/reset-password",            authHandler.ResetPassword).Methods("POST")
+	r.HandleFunc("/users",                          userHandler.CreateUser).Methods("POST") // Если это регистрация
+	r.HandleFunc("/auth/refresh", authHandler.Refresh).Methods("POST")
+	r.HandleFunc("/auth/logout", authHandler.Logout).Methods("POST")
 
-	r.HandleFunc("/auth/change-password",           authHandler.ChangePassword).Methods("POST")
+	// --- Защищённые ручки (JWT Auth) ---
+	protected := r.PathPrefix("").Subrouter()
+	protected.Use(middleware.JWTAuth)
 
-	// Сброс пароля (трёхшагово):
-	r.HandleFunc("/auth/forgot-password",           authHandler.ForgotPassword).Methods("POST") // 1
-	// step 2 — VerifyPhone (тот же endpoint)
-	r.HandleFunc("/auth/reset-password",            authHandler.ResetPassword).Methods("POST")  // 3
+	// User endpoints
+	protected.HandleFunc("/users",      userHandler.GetUsers).Methods("GET")
+	protected.HandleFunc("/users/{id}", userHandler.UpdateUser).Methods("PUT")
+	protected.HandleFunc("/users/{id}", userHandler.DeleteUser).Methods("DELETE")
+
+	// Auth endpoints требующие авторизации
+	protected.HandleFunc("/auth/change-password", authHandler.ChangePassword).Methods("POST")
+
+	// (Если добавятся ещё защищённые ручки — добавляй сюда)
 
 	return r
 }

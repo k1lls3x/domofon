@@ -199,3 +199,11 @@ CREATE TABLE phone_verification_tokens (
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- JWT_TOKENS
+CREATE TABLE refresh_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    token TEXT NOT NULL,
+    jti TEXT, 
+    expires_at TIMESTAMP NOT NULL
+);

@@ -20,11 +20,15 @@ type Auth interface {
 	InvalidateResetToken(ctx context.Context, token string) error
 	GetUserByPhone(ctx context.Context, phone string) (*db.User, error)
 	ChangePasswordByPhone(ctx context.Context, phone string, newHash string) error
-
 	IsPhoneTaken(ctx context.Context, phone string) (bool, error)
   IsUsernameTaken(ctx context.Context, username string) (bool, error)
 	IsEmailTaken(ctx context.Context, email string)(bool,error)
-	}
+
+	SaveRefreshToken(ctx context.Context, userID int64, token, jti string, expiresAt time.Time) error
+  GetRefreshToken(ctx context.Context, token string) (*db.RefreshToken, error)
+	DeleteRefreshToken(ctx context.Context, token string) error
+
+}
 
 
 type AuthRepository struct {
@@ -117,3 +121,5 @@ func (r *AuthRepository) IsEmailTaken(ctx context.Context, email string)(bool,er
 	}
 	return true, nil
 }
+
+

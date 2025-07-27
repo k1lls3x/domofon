@@ -99,6 +99,14 @@ type PhoneVerificationToken struct {
 	CreatedAt        pgtype.Timestamp
 }
 
+type RefreshToken struct {
+	ID        int32
+	UserID    int32
+	Token     string
+	Jti       pgtype.Text
+	ExpiresAt pgtype.Timestamp
+}
+
 type SipAccount struct {
 	ID        int32
 	Username  string

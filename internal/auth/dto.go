@@ -33,6 +33,7 @@ type ResetPasswordRequest struct {
     Phone       string `json:"phone"`
     NewPassword string `json:"newPassword"`
 }
+
 // --- Верификация номера ---
 type RequestPhoneVerificationRequest struct {
 	Phone string `json:"phone"`
@@ -42,6 +43,7 @@ type VerifyPhoneRequest struct {
 	Phone string `json:"phone"`
 	Code  string `json:"code"`
 }
+
 // UserResponse описывает структуру JSON-ответа при успешной авторизации
 type UserResponse struct {
     ID        int64  `json:"id"`
@@ -51,4 +53,21 @@ type UserResponse struct {
     Role      string `json:"role"`
     FirstName string `json:"first_name"`
     LastName  string `json:"last_name"`
+}
+
+type LoginResponse struct {
+	AccessToken  string       `json:"access_token"`
+	RefreshToken string       `json:"refresh_token"`
+	User         UserResponse `json:"user"`
+}
+
+// RefreshRequest — тело запроса для refresh/logout
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+// RefreshResponse — ответ для /auth/refresh
+type RefreshResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }

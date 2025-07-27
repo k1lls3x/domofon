@@ -21,6 +21,27 @@ definitions:
       phone:
         type: string
     type: object
+  internal_auth.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      user:
+        $ref: '#/definitions/internal_auth.UserResponse'
+    type: object
+  internal_auth.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  internal_auth.RefreshResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
   internal_auth.RegisterRequest:
     properties:
       email:
@@ -133,7 +154,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Авторизация пользователя по телефону и паролю
+      description: Авторизация пользователя по телефону и паролю. Возвращает пару
+        access/refresh токенов.
       parameters:
       - description: Данные для входа
         in: body
@@ -145,9 +167,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: Пользователь авторизован
+          description: Пользователь авторизован, токены выданы
           schema:
-            $ref: '#/definitions/internal_auth.UserResponse'
+            $ref: '#/definitions/internal_auth.LoginResponse'
         "400":
           description: Некорректный JSON
           schema:
@@ -157,6 +179,61 @@ paths:
           schema:
             type: string
       summary: Вход по номеру телефона и паролю
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Удаляет refresh токен из БД, делая его невалидным. После этого
+        все access токены с этим refresh станут неактуальны.
+      parameters:
+      - description: Refresh токен для удаления
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Выход выполнен
+        "400":
+          description: Некорректный JSON
+          schema:
+            type: string
+      summary: Выйти из системы (logout)
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Принимает refresh токен, возвращает новую пару access/refresh токенов.
+      parameters:
+      - description: Refresh токен
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Новая пара токенов выдана
+          schema:
+            $ref: '#/definitions/internal_auth.RefreshResponse'
+        "400":
+          description: Некорректный JSON
+          schema:
+            type: string
+        "401":
+          description: Неверный или истёкший refresh токен
+          schema:
+            type: string
+      summary: Обновить access/refresh токены
       tags:
       - auth
   /auth/register:

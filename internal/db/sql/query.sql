@@ -79,3 +79,15 @@ SELECT phone, verification_code, expires_at, created_at
 FROM phone_verification_tokens
 WHERE phone = $1;
 
+-- name: SaveRefreshToken :exec
+INSERT INTO refresh_tokens (user_id, token, jti, expires_at)
+VALUES ($1, $2, $3, $4);
+
+-- name: GetRefreshToken :one
+SELECT id, user_id, token, jti, expires_at
+FROM refresh_tokens
+WHERE token = $1;
+
+-- name: DeleteRefreshToken :exec
+DELETE FROM refresh_tokens
+WHERE token = $1;
