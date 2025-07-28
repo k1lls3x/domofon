@@ -1,8 +1,6 @@
 -- Получить всех пользователей
 -- name: GetUsers :many
 SELECT * FROM users;
--- name: GetUserByID :one
-SELECT * FROM users WHERE id = $1;
 
 -- name: CreateUser :one
 INSERT INTO users (username, password_hash, email, phone, role, first_name, last_name)
@@ -91,3 +89,12 @@ WHERE token = $1;
 -- name: DeleteRefreshToken :exec
 DELETE FROM refresh_tokens
 WHERE token = $1;
+
+-- name: GetUserAvatarURL :one
+SELECT avatar_url FROM users WHERE id = $1;
+
+-- name: UpdateUserAvatarURL :exec
+UPDATE users SET avatar_url = $2 WHERE id = $1;
+
+-- name: GetUserByID :one
+SELECT * FROM users WHERE id = $1;

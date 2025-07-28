@@ -128,4 +128,5 @@ type User struct {
 	CreatedAt    pgtype.Timestamp
 	FirstName    pgtype.Text
 	LastName     pgtype.Text
+	AvatarUrl    pgtype.Text
 }

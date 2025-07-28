@@ -1,5 +1,51 @@
 basePath: /
 definitions:
+  domofon_internal_db.UpdateUserParams:
+    properties:
+      email:
+        type: string
+      firstName:
+        $ref: '#/definitions/pgtype.Text'
+      id:
+        format: int32
+        type: integer
+      lastName:
+        $ref: '#/definitions/pgtype.Text'
+      passwordHash:
+        type: string
+      phone:
+        type: string
+      role:
+        $ref: '#/definitions/pgtype.Text'
+      username:
+        type: string
+    type: object
+  domofon_internal_db.User:
+    properties:
+      avatarUrl:
+        $ref: '#/definitions/pgtype.Text'
+      createdAt:
+        $ref: '#/definitions/pgtype.Timestamp'
+      email:
+        type: string
+      firstName:
+        $ref: '#/definitions/pgtype.Text'
+      id:
+        format: int32
+        type: integer
+      isActive:
+        $ref: '#/definitions/pgtype.Bool'
+      lastName:
+        $ref: '#/definitions/pgtype.Text'
+      passwordHash:
+        type: string
+      phone:
+        type: string
+      role:
+        $ref: '#/definitions/pgtype.Text'
+      username:
+        type: string
+    type: object
   internal_auth.ChangePasswordRequest:
     properties:
       new_password:
@@ -94,6 +140,58 @@ definitions:
         type: string
       phone:
         type: string
+    type: object
+  internal_user.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password_hash:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+  pgtype.Bool:
+    properties:
+      bool:
+        type: boolean
+      valid:
+        type: boolean
+    type: object
+  pgtype.InfinityModifier:
+    enum:
+    - 1
+    - 0
+    - -1
+    format: int32
+    type: integer
+    x-enum-varnames:
+    - Infinity
+    - Finite
+    - NegativeInfinity
+  pgtype.Text:
+    properties:
+      string:
+        type: string
+      valid:
+        type: boolean
+    type: object
+  pgtype.Timestamp:
+    properties:
+      infinityModifier:
+        $ref: '#/definitions/pgtype.InfinityModifier'
+      time:
+        description: Time zone will be ignored when encoding to PostgreSQL.
+        type: string
+      valid:
+        type: boolean
     type: object
 host: localhost:8080
 info:
@@ -340,4 +438,190 @@ paths:
       summary: Подтвердить номер телефона
       tags:
       - auth
+  /users:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domofon_internal_db.User'
+            type: array
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Получить список пользователей
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Новый пользователь
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/internal_user.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domofon_internal_db.User'
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Создать пользователя
+      tags:
+      - users
+  /users/{id}:
+    delete:
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Удалить пользователя
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Данные пользователя
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/domofon_internal_db.UpdateUserParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domofon_internal_db.User'
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Обновить пользователя
+      tags:
+      - users
+  /users/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domofon_internal_db.User'
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "404":
+          description: User not found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Получить профиль текущего пользователя
+      tags:
+      - users
+  /users/me/avatar:
+    delete:
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Удалить аватар пользователя
+      tags:
+      - users
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Файл аватара (jpg/png/webp)
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Загрузить или обновить аватар пользователя
+      tags:
+      - users
 swagger: "2.0"

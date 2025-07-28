@@ -33,3 +33,11 @@ func (s *UserService) UpdateUser(ctx context.Context, params db.UpdateUserParams
 func (s *UserService) DeleteUser(ctx context.Context, userID int32) error {
     return s.repo.DeleteUser(ctx, userID)
 }
+
+func (s *UserService) GetUserAvatarURL(ctx context.Context, userID int32) (string, error) {
+	return s.repo.GetUserAvatarURL(ctx, userID)
+}
+
+func (s *UserService) UpdateUserAvatarURL(ctx context.Context, userID int32, avatarURL string) error {
+	return s.repo.UpdateUserAvatarURL(ctx, userID, avatarURL)
+}

@@ -6,7 +6,7 @@ import (
 	"domofon/internal/verification"
 	"domofon/internal/db"
 	"domofon/internal/middleware"
-
+	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -57,9 +57,13 @@ func NewRouter(pool *pgxpool.Pool) *mux.Router {
 	protected.Use(middleware.JWTAuth)
 
 	// User endpoints
+	protected.HandleFunc("/users/me", userHandler.GetCurrentUser).Methods("GET")
 	protected.HandleFunc("/users",      userHandler.GetUsers).Methods("GET")
 	protected.HandleFunc("/users/{id}", userHandler.UpdateUser).Methods("PUT")
 	protected.HandleFunc("/users/{id}", userHandler.DeleteUser).Methods("DELETE")
+	protected.HandleFunc("/users/me/avatar", userHandler.UploadAvatar).Methods("POST")
+	protected.HandleFunc("/users/me/avatar", userHandler.DeleteAvatar).Methods("DELETE")
+r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 
 	// Auth endpoints требующие авторизации
 	protected.HandleFunc("/auth/change-password", authHandler.ChangePassword).Methods("POST")

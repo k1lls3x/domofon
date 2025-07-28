@@ -3,13 +3,14 @@ CREATE TABLE users (
     id              SERIAL PRIMARY KEY,
     username        VARCHAR(64) UNIQUE NOT NULL,
     password_hash   VARCHAR(128) NOT NULL,
-    email           VARCHAR(128)UNIQUE NOT NULL,
+    email           VARCHAR(128) UNIQUE NOT NULL,
     phone           VARCHAR(32) UNIQUE NOT NULL,
     role            VARCHAR(32) DEFAULT 'user',
     is_active       BOOLEAN DEFAULT TRUE,
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     first_name      VARCHAR(64),
-    last_name       VARCHAR(64)
+    last_name       VARCHAR(64),
+    avatar_url      VARCHAR(255) -- вот это поле!
 );
 
 -- 2. APARTMENTS (Квартиры/офисы/объекты)
@@ -73,11 +74,7 @@ CREATE INDEX idx_keys_is_active ON keys (is_active);
 
 -- 6. ACCESS_HISTORY (История использования ключей/доступа)
 CREATE TABLE access_history (
-    id              SERIAL P
-        </LinearGradient>
-
-        {/* Cards Row */}
-        <VieRIMARY KEY,
+    id              SERIAL PRIMARY KEY,
     key_id          INTEGER REFERENCES keys(id) ON DELETE SET NULL,
     device_id       INTEGER REFERENCES devices(id) ON DELETE SET NULL,
     user_id         INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -85,6 +82,7 @@ CREATE TABLE access_history (
     result          VARCHAR(32),
     description     VARCHAR(255)
 );
+
 
 CREATE INDEX idx_access_history_key ON access_history (key_id);
 CREATE INDEX idx_access_history_device ON access_history (device_id);

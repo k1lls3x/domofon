@@ -60,7 +60,7 @@ func (q *Queries) CreatePasswordResetToken(ctx context.Context, arg CreatePasswo
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, password_hash, email, phone, role, first_name, last_name)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name
+RETURNING id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name, avatar_url
 `
 
 type CreateUserParams struct {
@@ -95,6 +95,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.FirstName,
 		&i.LastName,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
@@ -195,8 +196,19 @@ func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshTok
 	return i, err
 }
 
+const getUserAvatarURL = `-- name: GetUserAvatarURL :one
+SELECT avatar_url FROM users WHERE id = $1
+`
+
+func (q *Queries) GetUserAvatarURL(ctx context.Context, id int32) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, getUserAvatarURL, id)
+	var avatar_url pgtype.Text
+	err := row.Scan(&avatar_url)
+	return avatar_url, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users WHERE email = $1
+SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name, avatar_url FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -213,12 +225,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.CreatedAt,
 		&i.FirstName,
 		&i.LastName,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users WHERE id = $1
+SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name, avatar_url FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
@@ -235,12 +248,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.CreatedAt,
 		&i.FirstName,
 		&i.LastName,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
 
 const getUserByPhone = `-- name: GetUserByPhone :one
-SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users WHERE phone = $1
+SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name, avatar_url FROM users WHERE phone = $1
 `
 
 func (q *Queries) GetUserByPhone(ctx context.Context, phone string) (User, error) {
@@ -257,12 +271,13 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone string) (User, error
 		&i.CreatedAt,
 		&i.FirstName,
 		&i.LastName,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
 
 const getUserByResetToken = `-- name: GetUserByResetToken :one
-SELECT u.id, u.username, u.password_hash, u.email, u.phone, u.role, u.is_active, u.created_at, u.first_name, u.last_name
+SELECT u.id, u.username, u.password_hash, u.email, u.phone, u.role, u.is_active, u.created_at, u.first_name, u.last_name, u.avatar_url
 FROM users u
 JOIN password_reset_tokens prt ON prt.user_id = u.id
 WHERE prt.token = $1 AND prt.expires_at > NOW()
@@ -282,12 +297,13 @@ func (q *Queries) GetUserByResetToken(ctx context.Context, token string) (User, 
 		&i.CreatedAt,
 		&i.FirstName,
 		&i.LastName,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users WHERE username = $1
+SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name, avatar_url FROM users WHERE username = $1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -304,12 +320,13 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.CreatedAt,
 		&i.FirstName,
 		&i.LastName,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name FROM users
+SELECT id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name, avatar_url FROM users
 `
 
 // Получить всех пользователей
@@ -333,6 +350,7 @@ func (q *Queries) GetUsers(ctx context.Context) ([]User, error) {
 			&i.CreatedAt,
 			&i.FirstName,
 			&i.LastName,
+			&i.AvatarUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -415,7 +433,7 @@ SET username = $2,
     first_name = $7,
     last_name = $8
 WHERE id = $1
-RETURNING id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name
+RETURNING id, username, password_hash, email, phone, role, is_active, created_at, first_name, last_name, avatar_url
 `
 
 type UpdateUserParams struct {
@@ -452,8 +470,23 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.CreatedAt,
 		&i.FirstName,
 		&i.LastName,
+		&i.AvatarUrl,
 	)
 	return i, err
+}
+
+const updateUserAvatarURL = `-- name: UpdateUserAvatarURL :exec
+UPDATE users SET avatar_url = $2 WHERE id = $1
+`
+
+type UpdateUserAvatarURLParams struct {
+	ID        int32
+	AvatarUrl pgtype.Text
+}
+
+func (q *Queries) UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) error {
+	_, err := q.db.Exec(ctx, updateUserAvatarURL, arg.ID, arg.AvatarUrl)
+	return err
 }
 
 const upsertPhoneVerificationToken = `-- name: UpsertPhoneVerificationToken :exec
