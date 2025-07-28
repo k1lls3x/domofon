@@ -36,12 +36,14 @@ const UserProfile: React.FC<{
   const [modalVisible, setModalVisible] = useState(false);
   const [avatar, setAvatar] = useState(user.avatarUrl);
 
-  // --- Состояния для смены никнейма ---
   const [usernameEditModal, setUsernameEditModal] = useState(false);
   const [usernameInput, setUsernameInput] = useState(user.username);
   const [isSavingUsername, setIsSavingUsername] = useState(false);
 
-  // --- Функция смены никнейма ---
+  const [emailEditModal, setEmailEditModal] = useState(false);
+  const [emailInput, setEmailInput] = useState(user.email);
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
+
   const onChangeUsername = async () => {
     const newUsername = usernameInput.trim();
     if (!newUsername) {
@@ -55,19 +57,14 @@ const UserProfile: React.FC<{
     setIsSavingUsername(true);
     try {
       const token = await AsyncStorage.getItem('access_token');
-      const res = await axios.post(
-        `${API_URL}/users/me/username`,
-        { username: newUsername },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      await axios.post(`${API_URL}/users/me/username`, { username: newUsername }, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
       Alert.alert('Успешно', 'Никнейм изменён!');
       setUsernameEditModal(false);
-      // При необходимости обнови состояние пользователя в родителе
     } catch (e: any) {
       if (e?.response?.status === 409) {
         Alert.alert('Ошибка', 'Такой никнейм уже занят');
@@ -81,7 +78,39 @@ const UserProfile: React.FC<{
     }
   };
 
-  // --- Функции для работы с аватаром ---
+  const onChangeEmail = async () => {
+    const newEmail = emailInput.trim();
+    if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      Alert.alert('Ошибка', 'Введите корректный email!');
+      return;
+    }
+    if (newEmail === user.email) {
+      Alert.alert('Внимание', 'Email не изменился');
+      return;
+    }
+    setIsSavingEmail(true);
+    try {
+      const token = await AsyncStorage.getItem('access_token');
+      await axios.post(`${API_URL}/users/me/email`, { email: newEmail }, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      Alert.alert('Успешно', 'Email изменён!');
+      setEmailEditModal(false);
+    } catch (e: any) {
+      if (e?.response?.status === 409) {
+        Alert.alert('Ошибка', 'Такой email уже используется');
+      } else if (e?.response?.status === 400) {
+        Alert.alert('Ошибка', 'Некорректные данные');
+      } else {
+        Alert.alert('Ошибка', 'Не удалось изменить email');
+      }
+    } finally {
+      setIsSavingEmail(false);
+    }
+  };
 
   const pickImage = async () => {
     setModalVisible(false);
@@ -91,7 +120,7 @@ const UserProfile: React.FC<{
       aspect: [1, 1],
       quality: 0.9,
     });
-    if (!result.canceled && result.assets && result.assets.length > 0) {
+    if (!result.canceled && result.assets?.length > 0) {
       uploadAvatar(result.assets[0].uri);
     }
   };
@@ -103,7 +132,7 @@ const UserProfile: React.FC<{
       aspect: [1, 1],
       quality: 0.9,
     });
-    if (!result.canceled && result.assets && result.assets.length > 0) {
+    if (!result.canceled && result.assets?.length > 0) {
       uploadAvatar(result.assets[0].uri);
     }
   };
@@ -115,7 +144,7 @@ const UserProfile: React.FC<{
       copyToCacheDirectory: true,
       multiple: false,
     });
-    if (result.assets && result.assets.length > 0) {
+    if (!result.canceled && result.assets?.length > 0) {
       uploadAvatar(result.assets[0].uri);
     }
   };
@@ -150,16 +179,19 @@ const UserProfile: React.FC<{
     }
   };
 
+  const formatPhone = (phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length !== 11) return phone;
+    return `+7 (${digits.slice(1, 4)})-${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9)}`;
+  };
+
   return (
     <View style={styles.container}>
-      {/* Аватар */}
       <TouchableOpacity disabled={!!onlyMain} onPress={() => setModalVisible(true)}>
         <Image
           style={styles.avatar}
           source={{
-            uri:
-              avatar ||
-              `https://ui-avatars.com/api/?name=${user.firstName || user.username}&background=1E69DE&color=fff&rounded=true&size=128`,
+            uri: avatar || `https://ui-avatars.com/api/?name=${user.firstName || user.username}&background=1E69DE&color=fff&rounded=true&size=128`,
           }}
         />
         {!onlyMain && (
@@ -169,60 +201,46 @@ const UserProfile: React.FC<{
         )}
       </TouchableOpacity>
 
-      {/* Имя */}
       <Text style={styles.name}>
         {user.firstName} {user.lastName}
       </Text>
 
-      {/* Никнейм с кнопкой редактирования */}
       <View style={styles.usernameRow}>
         <Text style={styles.username}>@{usernameInput}</Text>
         {!onlyMain && (
-          <TouchableOpacity
-            onPress={() => setUsernameEditModal(true)}
-            style={styles.usernameEditBtn}
-          >
+          <TouchableOpacity onPress={() => setUsernameEditModal(true)} style={styles.usernameEditBtn}>
             <Text style={styles.usernameEditIcon}>✎</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Остальная информация */}
       {!onlyMain && (
         <>
           <View style={styles.infoBlock}>
             <Text style={styles.infoLabel}>Телефон:</Text>
-            <Text style={styles.infoValue}>{user.phone}</Text>
+            <Text style={styles.infoValue}>{formatPhone(user.phone)}</Text>
           </View>
           <View style={styles.infoBlock}>
             <Text style={styles.infoLabel}>Email:</Text>
-            <Text style={styles.infoValue}>{user.email}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.infoValue}>{emailInput}</Text>
+              <TouchableOpacity onPress={() => setEmailEditModal(true)} style={styles.usernameEditBtn}>
+                <Text style={styles.usernameEditIcon}>✎</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.infoBlock}>
             <Text style={styles.infoLabel}>Зарегистрирован:</Text>
-            <Text style={styles.infoValue}>
-              {user.createdAt && new Date(user.createdAt).toLocaleDateString('ru-RU')}
-            </Text>
+            <Text style={styles.infoValue}>{user.createdAt && new Date(user.createdAt).toLocaleDateString('ru-RU')}</Text>
           </View>
         </>
       )}
 
-      {/* Модальное окно для смены никнейма */}
-      <Modal
-        visible={usernameEditModal}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setUsernameEditModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBG}
-          activeOpacity={1}
-          onPress={() => setUsernameEditModal(false)}
-        >
+      {/* Модалка никнейма */}
+      <Modal visible={usernameEditModal} animationType="fade" transparent onRequestClose={() => setUsernameEditModal(false)}>
+        <TouchableOpacity style={styles.modalBG} activeOpacity={1} onPress={() => setUsernameEditModal(false)}>
           <View style={styles.modalBox}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 8, color: '#1E69DE' }}>
-              Новый никнейм
-            </Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 8, color: '#1E69DE' }}>Новый никнейм</Text>
             <TextInput
               value={usernameInput}
               onChangeText={setUsernameInput}
@@ -232,22 +250,36 @@ const UserProfile: React.FC<{
               autoFocus
               editable={!isSavingUsername}
             />
-            <TouchableOpacity
-              style={[styles.saveBtn, isSavingUsername && { opacity: 0.7 }]}
-              onPress={onChangeUsername}
-              disabled={isSavingUsername}
-            >
-              {isSavingUsername ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.saveBtnText}>Сохранить</Text>
-              )}
+            <TouchableOpacity style={[styles.saveBtn, isSavingUsername && { opacity: 0.7 }]} onPress={onChangeUsername} disabled={isSavingUsername}>
+              {isSavingUsername ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Сохранить</Text>}
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* Модальное окно выбора аватара */}
+      {/* Модалка email */}
+      <Modal visible={emailEditModal} animationType="fade" transparent onRequestClose={() => setEmailEditModal(false)}>
+        <TouchableOpacity style={styles.modalBG} activeOpacity={1} onPress={() => setEmailEditModal(false)}>
+          <View style={styles.modalBox}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 8, color: '#1E69DE' }}>Новый Email</Text>
+            <TextInput
+              value={emailInput}
+              onChangeText={setEmailInput}
+              placeholder="Введите новый email"
+              style={styles.input}
+              autoCapitalize="none"
+              autoFocus
+              keyboardType="email-address"
+              editable={!isSavingEmail}
+            />
+            <TouchableOpacity style={[styles.saveBtn, isSavingEmail && { opacity: 0.7 }]} onPress={onChangeEmail} disabled={isSavingEmail}>
+              {isSavingEmail ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Сохранить</Text>}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Выбор аватара */}
       <Modal visible={modalVisible} animationType="fade" transparent>
         <TouchableOpacity style={styles.modalBG} onPress={() => setModalVisible(false)}>
           <View style={styles.modalBox}>
