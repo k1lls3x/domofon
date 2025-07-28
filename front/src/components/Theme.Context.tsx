@@ -38,19 +38,19 @@ const lightTheme: Theme = {
   btnDisabled: '#E2E5F7',
   btnTextDisabled: '#BFC9DE',
 
-error: '#e43a4b',
-success: '#41d67a',
+  error: '#e43a4b',
+  success: '#41d67a',
 };
 
 const darkTheme: Theme = {
   mode: 'dark',
   background: '#18192B',
   cardBg: '#23243A',
-  shadow: '#00000080',      // полупрозрачная чёрная тень
+  shadow: '#00000080',
   text: '#FFFFFF',
 
-error: '#e43a4b',
-success: '#41d67a',
+  error: '#e43a4b',
+  success: '#41d67a',
   subtext: '#B8BDD4',
   inputBg: '#23243A',
   inputBorder: '#414262',

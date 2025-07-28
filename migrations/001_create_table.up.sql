@@ -73,7 +73,11 @@ CREATE INDEX idx_keys_is_active ON keys (is_active);
 
 -- 6. ACCESS_HISTORY (История использования ключей/доступа)
 CREATE TABLE access_history (
-    id              SERIAL PRIMARY KEY,
+    id              SERIAL P
+        </LinearGradient>
+
+        {/* Cards Row */}
+        <VieRIMARY KEY,
     key_id          INTEGER REFERENCES keys(id) ON DELETE SET NULL,
     device_id       INTEGER REFERENCES devices(id) ON DELETE SET NULL,
     user_id         INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -204,6 +208,6 @@ CREATE TABLE refresh_tokens (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     token TEXT NOT NULL,
-    jti TEXT, 
+    jti TEXT,
     expires_at TIMESTAMP NOT NULL
 );

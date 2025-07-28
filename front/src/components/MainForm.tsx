@@ -1,168 +1,286 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  Platform,
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient'; // или react-native-linear-gradient
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import UserProfile, { User } from './UserProfile';
 
-const MainScreen: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'requests' | 'settings'>('profile');
+// Для теста — имитируем получение пользователя
+const mockUser: User = {
+  id: 1,
+  username: 'timur',
+  email: 'timur@example.com',
+  phone: '+79991234567',
+  first_name: 'Тимур',
+  last_name: 'Иванов',
+  created_at: '2024-07-27T10:42:00',
+};
 
-  const handleLogout = async () => {
-    try {
-      await AsyncStorage.removeItem('access_token');
-      await AsyncStorage.removeItem('refresh_token');
-      onLogout();
-    } catch {
-      Alert.alert('Ошибка', 'Не удалось выйти из аккаунта');
-    }
-  };
+type TabKey = 'home' | 'video' | 'history' | 'devices' | 'profile';
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'profile':
-        return <Text style={styles.contentText}>Профиль пользователя</Text>;
-      case 'requests':
-        return <Text style={styles.contentText}>Список заявок</Text>;
-      case 'settings':
-        return <Text style={styles.contentText}>Настройки приложения</Text>;
-    }
-  };
+const MainScreen: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const [user, setUser] = useState<User | null>(null);
 
-  const tabs: { key: typeof activeTab; title: string }[] = [
-    { key: 'profile', title: 'Профиль' },
-    { key: 'requests', title: 'Заявки' },
-    { key: 'settings', title: 'Настройки' },
+  useEffect(() => {
+    setTimeout(() => setUser(mockUser), 500);
+  }, []);
+
+  // Мок-события
+  const events = [
+    { type: 'call', time: '09:54', text: 'Вызов с подъезда', avatar: 'https://i.pravatar.cc/40?img=12' },
+    { type: 'open', time: '09:56', text: 'Открыта дверь', avatar: 'https://i.pravatar.cc/40?img=13' },
+    { type: 'call', time: '11:23', text: 'Вызов с домофона', avatar: 'https://i.pravatar.cc/40?img=11' },
   ];
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        {renderContent()}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Выйти</Text>
-        </TouchableOpacity>
-      </View>
+  // Контент для каждой вкладки
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'home':
+        return (
+          <ScrollView contentContainerStyle={styles.scroll}>
+            {user && <UserProfile user={user} />}
 
-      <View style={styles.tabBarContainer}>
-        <View style={styles.tabBar}>
-          {tabs.map(tab => {
-            const isActive = tab.key === activeTab;
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                style={styles.tabWrapper}
-                onPress={() => setActiveTab(tab.key)}
-                activeOpacity={0.8}
-              >
-                {isActive ? (
-                  <LinearGradient
-                    colors={['#6FB1FC', '#1E69DE']}
-                    start={[0, 0]}
-                    end={[1, 1]}
-                    style={styles.activeTab}
-                  >
-                    <Text style={[styles.tabText, styles.tabTextActive]}>
-                      {tab.title}
-                    </Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.tabItem}>
-                    <Text style={styles.tabTextInactive}>{tab.title}</Text>
-                  </View>
-                )}
+            <LinearGradient
+              colors={['#f5fbff', '#d2e4fa']}
+              style={styles.actionCard}
+            >
+              <Text style={styles.actionTitle}>Домофон</Text>
+              <Text style={styles.actionSubtitle}>Быстро открыть дверь</Text>
+              <TouchableOpacity style={styles.doorButton}>
+                <Text style={styles.doorButtonText}>Открыть дверь</Text>
               </TouchableOpacity>
-            );
-          })}
-        </View>
+            </LinearGradient>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>2</Text>
+                <Text style={styles.statLabel}>Звонка сегодня</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>1</Text>
+                <Text style={styles.statLabel}>Открыто дверей</Text>
+              </View>
+            </View>
+
+            <Text style={styles.eventsTitle}>События</Text>
+            {events.map((ev, i) => (
+              <View key={i} style={styles.eventCard}>
+                <Image source={{ uri: ev.avatar }} style={styles.eventAvatar} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.eventText}>{ev.text}</Text>
+                  <Text style={styles.eventTime}>{ev.time}</Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        );
+      case 'video':
+        return (
+          <View style={styles.centerTab}>
+            <Text style={styles.tabTitle}>Видеозвонок</Text>
+            <View style={styles.videoStub}>
+              <Text style={{ color: '#aab3c7' }}>Тут будет видео с камеры</Text>
+            </View>
+            <TouchableOpacity style={styles.doorButton}>
+              <Text style={styles.doorButtonText}>Открыть дверь</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      case 'history':
+        return (
+          <ScrollView contentContainerStyle={styles.scroll}>
+            <Text style={styles.tabTitle}>История событий</Text>
+            {events.map((ev, i) => (
+              <View key={i} style={styles.eventCard}>
+                <Image source={{ uri: ev.avatar }} style={styles.eventAvatar} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.eventText}>{ev.text}</Text>
+                  <Text style={styles.eventTime}>{ev.time}</Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        );
+      case 'devices':
+        return (
+          <View style={styles.centerTab}>
+            <Text style={styles.tabTitle}>Устройства</Text>
+            <TouchableOpacity style={styles.deviceButton}>
+              <Text style={styles.deviceButtonText}>Открыть ворота</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deviceButton}>
+              <Text style={styles.deviceButtonText}>Включить свет</Text>
+            </TouchableOpacity>
+            {/* Здесь будут ваши устройства, добавляй новые по мере разработки */}
+          </View>
+        );
+      case 'profile':
+        return (
+          <ScrollView contentContainerStyle={styles.scroll}>
+            {user && <UserProfile user={user} />}
+            {/* Кнопка выхода и настройки можно добавить здесь */}
+            <TouchableOpacity style={styles.logoutButton}>
+              <Text style={styles.logoutText}>Выйти</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        );
+    }
+  };
+
+  // Табы, эмодзи можно заменить на иконки
+  const tabs = [
+    { key: 'home', label: 'Главная', icon: '🏠' },
+    { key: 'video', label: 'Видео', icon: '🎥' },
+    { key: 'history', label: 'История', icon: '📜' },
+    { key: 'devices', label: 'Устройства', icon: '🔌' },
+    { key: 'profile', label: 'Профиль', icon: '👤' },
+  ] as const;
+
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>{renderTabContent()}</View>
+      <View style={styles.tabBar}>
+        {tabs.map(tab => (
+          <TouchableOpacity
+            key={tab.key}
+            style={styles.tabBarItem}
+            activeOpacity={0.85}
+            onPress={() => setActiveTab(tab.key)}
+          >
+            <Text style={[
+              styles.tabBarIcon,
+              activeTab === tab.key && { color: '#1E69DE' }
+            ]}>
+              {tab.icon}
+            </Text>
+            <Text style={[
+              styles.tabBarLabel,
+              activeTab === tab.key && { color: '#1E69DE' }
+            ]}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F4F7' },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
+  // ... (все твои старые стили)
+  root: { flex: 1, backgroundColor: '#f7f9fb' },
+  scroll: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 28 },
+  actionCard: {
+    backgroundColor: '#eaf2ff',
+    borderRadius: 18,
+    padding: 22,
+    marginVertical: 18,
     alignItems: 'center',
-    paddingBottom: 100, // чтобы таб-бар не заслонял
+    shadowColor: '#0d2d62',
+    shadowOpacity: 0.04,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 1,
   },
-  contentText: {
-    fontSize: 20,
-    color: '#333',
-    marginBottom: 20,
+  actionTitle: { fontSize: 20, fontWeight: '700', color: '#1E69DE', marginBottom: 2 },
+  actionSubtitle: { color: '#6a7e95', fontSize: 14, marginBottom: 18 },
+  doorButton: {
+    backgroundColor: '#1E69DE',
+    paddingHorizontal: 36,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 8,
   },
+  doorButtonText: { color: '#fff', fontWeight: '700', fontSize: 17, letterSpacing: 0.5 },
+  statsRow: { flexDirection: 'row', marginBottom: 16, marginTop: 10, gap: 13 },
+  statCard: {
+    flex: 1,
+  backgroundColor: '#f7f9fb',
+      borderRadius: 14,
+      padding: 18,
+      alignItems: 'center',
+      shadowColor: '#1E69DE',
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 1,
+    },
+  statValue: { color: '#1E69DE', fontWeight: '800', fontSize: 24, marginBottom: 3 },
+  statLabel: { color: '#7e8ca4', fontWeight: '600', fontSize: 13 },
+  eventsTitle: { fontSize: 18, color: '#222', fontWeight: '700', marginTop: 22, marginBottom: 6, marginLeft: 2 },
+  eventCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 13,
+    padding: 13,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  eventAvatar: { width: 38, height: 38, borderRadius: 19, marginRight: 13, backgroundColor: '#e2e4f0' },
+  eventText: { fontSize: 15, color: '#282a36', fontWeight: '600' },
+  eventTime: { fontSize: 13, color: '#8d98a8', marginTop: 2, fontWeight: '500' },
+  // TABBAR
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 32,
+    height: 66,
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    bottom: Platform.OS === 'ios' ? 22 : 8,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+    zIndex: 5,
+  },
+  tabBarItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  tabBarIcon: { fontSize: 25, marginBottom: 1, color: '#B0B7C2' },
+  tabBarLabel: { fontSize: 12, color: '#B0B7C2', fontWeight: '700' },
+  // VIDEO STUB
+  centerTab: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fb' },
+  tabTitle: { fontSize: 21, fontWeight: '700', color: '#1E69DE', marginBottom: 24 },
+  videoStub: {
+    width: 260,
+    height: 180,
+    backgroundColor: '#e9e9ef',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 22,
+  },
+  // DEVICES
+  deviceButton: {
+    backgroundColor: '#3DD598',
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 18,
+  },
+  deviceButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  // PROFILE
   logoutButton: {
     backgroundColor: '#E43A4B',
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     paddingVertical: 12,
     borderRadius: 10,
+    marginTop: 36,
+    alignSelf: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  logoutText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-
-  tabBarContainer: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: Platform.select({ ios: 32, android: 16 }),
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 5 },
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
-  },
-  tabWrapper: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  tabItem: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 16,
-  },
-  activeTab: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: 16,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  tabTextActive: {
-    color: '#fff',
-  },
-  tabTextInactive: {
-    color: '#8E8E93',
-  },
+  logoutText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 });
 
 export default MainScreen;
