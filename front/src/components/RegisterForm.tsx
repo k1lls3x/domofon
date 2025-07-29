@@ -259,8 +259,8 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
               style={[styles.btnBg, !validStep0 && { opacity: 0.8 }]}
             >
               {loading
-                ? <ActivityIndicator color={theme.btnText} />
-                : <Text style={[styles.btnText, { color: theme.btnText }]}>Далее</Text>
+                ? <ActivityIndicator color={theme.buttonText} />
+                : <Text style={[styles.btnText, { color: theme.buttonText }]}>Далее</Text>
               }
             </LinearGradient>
           </TouchableOpacity>
@@ -299,8 +299,8 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
               style={[styles.btnBg, !validStep1 && { opacity: 0.8 }]}
             >
               {loading
-                ? <ActivityIndicator color={theme.btnText} />
-                : <Text style={[styles.btnText, { color: theme.btnText }]}>Далее</Text>
+                ? <ActivityIndicator color={theme.buttonText} />
+                : <Text style={[styles.btnText, { color: theme.buttonText }]}>Далее</Text>
               }
             </LinearGradient>
           </TouchableOpacity>
@@ -368,7 +368,7 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={[styles.btnBg, !validStep2 && { opacity: 0.8 }]}
             >
-              <Text style={[styles.btnText, { color: theme.btnText }]}>Далее</Text>
+              <Text style={[styles.btnText, { color: theme.buttonText }]}>Далее</Text>
             </LinearGradient>
           </TouchableOpacity>
         </>
@@ -451,8 +451,8 @@ export const RegisterForm: React.FC<Props> = ({ onLogin }) => {
               style={[styles.btnBg, !validStep3 && { opacity: 0.8 }]}
             >
               {loading
-                ? <ActivityIndicator color={theme.btnText} />
-                : <Text style={[styles.btnText, { color: theme.btnText }]}>Зарегистрироваться</Text>
+                ? <ActivityIndicator color={theme.buttonText} />
+                : <Text style={[styles.btnText, { color: theme.buttonText }]}>Зарегистрироваться</Text>
               }
             </LinearGradient>
           </TouchableOpacity>

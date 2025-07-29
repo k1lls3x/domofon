@@ -214,8 +214,8 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
               style={styles.btnBg}
             >
               {loading
-                ? <ActivityIndicator color={theme.btnText} />
-                : <Text style={[styles.btnText, { color: theme.btnText }]}>Восстановить</Text>
+                ? <ActivityIndicator color={theme.buttonText} />
+                : <Text style={[styles.btnText, { color: theme.buttonText }]}>Восстановить</Text>
               }
             </LinearGradient>
           </TouchableOpacity>
@@ -253,8 +253,8 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
               style={styles.btnBg}
             >
               {loading
-                ? <ActivityIndicator color={theme.btnText} />
-                : <Text style={[styles.btnText, { color: theme.btnText }]}>Проверить код</Text>
+                ? <ActivityIndicator color={theme.buttonText} />
+                : <Text style={[styles.btnText, { color: theme.buttonText }]}>Проверить код</Text>
               }
             </LinearGradient>
           </TouchableOpacity>
@@ -321,8 +321,8 @@ export const ForgotForm: React.FC<Props> = ({ onLogin }) => {
               style={styles.btnBg}
             >
               {loading
-                ? <ActivityIndicator color={theme.btnText} />
-                : <Text style={[styles.btnText, { color: theme.btnText }]}>Сменить пароль</Text>
+                ? <ActivityIndicator color={theme.buttonText} />
+                : <Text style={[styles.btnText, { color: theme.buttonText }]}>Сменить пароль</Text>
               }
             </LinearGradient>
           </TouchableOpacity>

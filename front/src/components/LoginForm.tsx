@@ -9,7 +9,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { login } from './rest';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const PHONE_MASK = ['+','7',' ', '(', /\d/,/\d/,/\d/,')',' ',/\d/,/\d/,/\d/,'-',/\d/,/\d/,'-',/\d/,/\d/];
-
 interface Props {
   onRegister: () => void;
   onForgot: () => void;
@@ -152,9 +151,9 @@ return (
           style={[styles.btnBg, !valid && { opacity: 0.7 }]}
         >
           {loading ? (
-            <ActivityIndicator color={theme.btnText} />
+            <ActivityIndicator color={theme.buttonText} />
           ) : (
-            <Text style={[styles.btnText, { color: theme.btnText }]}>
+            <Text style={[styles.btnText, { color: theme.buttonText }]}>
               Войти
             </Text>
           )}
