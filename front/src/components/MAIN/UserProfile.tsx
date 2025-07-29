@@ -1,3 +1,4 @@
+// UserProfile.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -9,11 +10,15 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';            // expo-image-picker
+import * as DocumentPicker from 'expo-document-picker';      // expo-document-picker
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import mime from 'mime';
+import { useNavigation } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export interface User {
   id: number;
@@ -34,7 +39,7 @@ const UserProfile: React.FC<{
   onAvatarChanged?: (url: string) => void;
 }> = ({ user, onlyMain, onAvatarChanged }) => {
   const [modalVisible, setModalVisible] = useState(false);
-  const [avatar, setAvatar] = useState(user.avatarUrl);
+  const [avatar, setAvatar] = useState<string | undefined>(user.avatarUrl);
 
   const [usernameEditModal, setUsernameEditModal] = useState(false);
   const [usernameInput, setUsernameInput] = useState(user.username);
@@ -44,203 +49,239 @@ const UserProfile: React.FC<{
   const [emailInput, setEmailInput] = useState(user.email);
   const [isSavingEmail, setIsSavingEmail] = useState(false);
 
+  const navigation = useNavigation();
+
+  // Выход из профиля
+  const logout = async () => {
+    await AsyncStorage.multiRemove(['access_token', 'refresh_token']);
+    navigation.reset({ index: 0, routes: [{ name: 'Auth' as never }] });
+  };
+
+  // Загрузка аватара
+const uploadAvatar = async (uri: string) => {
+  try {
+    const token = await AsyncStorage.getItem('access_token');
+    const formData = new FormData();
+    const fileName = uri.split('/').pop() || 'avatar.jpg';
+    const match = /\.(\w+)$/.exec(fileName);
+    const ext = match ? match[1].toLowerCase() : 'jpg';
+    let type = '';
+    if (ext === 'jpg' || ext === 'jpeg') type = 'image/jpeg';
+    else if (ext === 'png') type = 'image/png';
+    else if (ext === 'webp') type = 'image/webp';
+    else type = 'image/*';
+
+    // ВАЖНО: 'avatar', а не 'file'
+    formData.append('avatar', {
+      uri,
+      name: fileName,
+      type,
+    } as any);
+
+    const res = await axios.post(`${API_URL}/users/me/avatar`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    let url = res.data?.avatar_url || (API_URL + '/uploads/' + fileName);
+    url += '?v=' + Date.now();
+    setAvatar(url);
+    onAvatarChanged?.(url);
+    Alert.alert('Успешно', 'Аватар обновлен!');
+    console.log('Установлен новый url:', url);
+  } catch (e: any) {
+    Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось загрузить аватар');
+    console.error(e);
+  }
+};
+
+
+  /** ---------- IMAGE / FILE PICKERS ---------- **/
+
+  // Галерея
+  const openImageLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      return Alert.alert('Нет доступа', 'Разрешите доступ к фото');
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+     mediaTypes: ['images'], // ← новый enum
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+    console.log('Gallery result:', result);
+    if (!result.canceled && result.assets.length > 0) {
+      uploadAvatar(result.assets[0].uri);
+    }
+  };
+
+  // Камера
+  const openCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      return Alert.alert('Нет доступа', 'Разрешите доступ к камере');
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+    console.log('Camera result:', result);
+    if (!result.canceled && result.assets.length > 0) {
+      uploadAvatar(result.assets[0].uri);
+    }
+  };
+
+  // Файловый пикер
+  const openDocumentPicker = async () => {
+const result = await DocumentPicker.getDocumentAsync({
+  type: 'image/*',
+  copyToCacheDirectory: true,
+  multiple: false,
+});
+console.log('DocumentPicker result:', result);
+if (!result.canceled && result.assets && result.assets.length > 0) {
+  uploadAvatar(result.assets[0].uri);
+}
+
+
+  };
+
+  // Смена никнейма
   const onChangeUsername = async () => {
     const newUsername = usernameInput.trim();
     if (!newUsername) {
-      Alert.alert('Ошибка', 'Введите новый никнейм!');
-      return;
+      return Alert.alert('Ошибка', 'Введите новый никнейм');
     }
     if (newUsername === user.username) {
-      Alert.alert('Внимание', 'Никнейм не изменился');
-      return;
+      return Alert.alert('Внимание', 'Никнейм не изменился');
     }
     setIsSavingUsername(true);
     try {
       const token = await AsyncStorage.getItem('access_token');
-      await axios.post(`${API_URL}/users/me/username`, { username: newUsername }, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      Alert.alert('Успешно', 'Никнейм изменён!');
+      await axios.post(
+        `${API_URL}/users/me/username`,
+        { username: newUsername },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      Alert.alert('Успешно', 'Никнейм изменён');
       setUsernameEditModal(false);
-    } catch (e: any) {
-      if (e?.response?.status === 409) {
-        Alert.alert('Ошибка', 'Такой никнейм уже занят');
-      } else if (e?.response?.status === 400) {
-        Alert.alert('Ошибка', 'Некорректные данные');
-      } else {
-        Alert.alert('Ошибка', 'Не удалось изменить никнейм');
-      }
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось изменить никнейм');
     } finally {
       setIsSavingUsername(false);
     }
   };
 
+  // Смена email
   const onChangeEmail = async () => {
     const newEmail = emailInput.trim();
-    if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
-      Alert.alert('Ошибка', 'Введите корректный email!');
-      return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      return Alert.alert('Ошибка', 'Введите корректный email');
     }
     if (newEmail === user.email) {
-      Alert.alert('Внимание', 'Email не изменился');
-      return;
+      return Alert.alert('Внимание', 'Email не изменился');
     }
     setIsSavingEmail(true);
     try {
       const token = await AsyncStorage.getItem('access_token');
-      await axios.post(`${API_URL}/users/me/email`, { email: newEmail }, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      Alert.alert('Успешно', 'Email изменён!');
+      await axios.post(
+        `${API_URL}/users/me/email`,
+        { email: newEmail },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      Alert.alert('Успешно', 'Email изменён');
       setEmailEditModal(false);
-    } catch (e: any) {
-      if (e?.response?.status === 409) {
-        Alert.alert('Ошибка', 'Такой email уже используется');
-      } else if (e?.response?.status === 400) {
-        Alert.alert('Ошибка', 'Некорректные данные');
-      } else {
-        Alert.alert('Ошибка', 'Не удалось изменить email');
-      }
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось изменить email');
     } finally {
       setIsSavingEmail(false);
     }
   };
 
-  const pickImage = async () => {
-    setModalVisible(false);
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.9,
-    });
-    if (!result.canceled && result.assets?.length > 0) {
-      uploadAvatar(result.assets[0].uri);
-    }
-  };
-
-  const takePhoto = async () => {
-    setModalVisible(false);
-    let result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.9,
-    });
-    if (!result.canceled && result.assets?.length > 0) {
-      uploadAvatar(result.assets[0].uri);
-    }
-  };
-
-  const pickFile = async () => {
-    setModalVisible(false);
-    const result = await DocumentPicker.getDocumentAsync({
-      type: 'image/*',
-      copyToCacheDirectory: true,
-      multiple: false,
-    });
-    if (!result.canceled && result.assets?.length > 0) {
-      uploadAvatar(result.assets[0].uri);
-    }
-  };
-
-  const uploadAvatar = async (uri: string) => {
-    try {
-      const token = await AsyncStorage.getItem('access_token');
-      const formData = new FormData();
-      const fileName = uri.split('/').pop() || 'avatar.jpg';
-      const match = /\.(\w+)$/.exec(fileName);
-      const type = match ? `image/${match[1]}` : `image`;
-
-      formData.append('file', {
-        uri,
-        name: fileName,
-        type,
-      } as any);
-
-      const res = await axios.post(`${API_URL}/users/me/avatar`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const url = res.data?.avatarUrl || (API_URL + '/uploads/' + fileName);
-      setAvatar(url);
-      onAvatarChanged?.(url);
-      Alert.alert('Успешно', 'Аватар обновлен!');
-    } catch (e) {
-      Alert.alert('Ошибка', 'Не удалось загрузить аватар');
-    }
-  };
-
   const formatPhone = (phone: string) => {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length !== 11) return phone;
-    return `+7 (${digits.slice(1, 4)})-${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9)}`;
+    const d = phone.replace(/\D/g, '');
+    if (d.length !== 11) return phone;
+    return `+7 (${d.slice(1, 4)})-${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`;
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity disabled={!!onlyMain} onPress={() => setModalVisible(true)}>
-        <Image
-          style={styles.avatar}
-          source={{
-            uri: avatar || `https://ui-avatars.com/api/?name=${user.firstName || user.username}&background=1E69DE&color=fff&rounded=true&size=128`,
-          }}
-        />
-        {!onlyMain && (
-          <View style={styles.editBadge}>
-            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>✎</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+    <View style={styles.outer}>
+      <View style={styles.card}>
+        <TouchableOpacity
+          disabled={!!onlyMain}
+          onPress={() => setModalVisible(true)}
+          style={styles.avatarWrap}
+          activeOpacity={0.8}
+        >
+          <Image
+            style={styles.avatar}
+            source={{
+              uri:
+                avatar ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  user.firstName || user.username
+                )}&background=1E69DE&color=fff&rounded=true&size=128`,
+            }}
+          />
+          {!onlyMain && (
+            <View style={styles.editBadge}>
+              <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
+            </View>
+          )}
+        </TouchableOpacity>
 
-      <Text style={styles.name}>
-        {user.firstName} {user.lastName}
-      </Text>
+        <Text style={styles.name}>{`${user.firstName || ''} ${user.lastName || ''}`}</Text>
 
-      <View style={styles.usernameRow}>
-        <Text style={styles.username}>@{usernameInput}</Text>
-        {!onlyMain && (
-          <TouchableOpacity onPress={() => setUsernameEditModal(true)} style={styles.usernameEditBtn}>
-            <Text style={styles.usernameEditIcon}>✎</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+        <View style={styles.usernameRow}>
+          <Text style={styles.username}>@{usernameInput}</Text>
+          {!onlyMain && (
+            <TouchableOpacity onPress={() => setUsernameEditModal(true)}>
+              <MaterialCommunityIcons name="pencil" size={18} color="#1E69DE" />
+            </TouchableOpacity>
+          )}
+        </View>
 
-      {!onlyMain && (
-        <>
-          <View style={styles.infoBlock}>
-            <Text style={styles.infoLabel}>Телефон:</Text>
+        <View style={styles.info}>
+          <View style={styles.infoItem}>
+            <MaterialCommunityIcons name="phone-outline" size={18} color="#B1B8C4" />
             <Text style={styles.infoValue}>{formatPhone(user.phone)}</Text>
           </View>
-          <View style={styles.infoBlock}>
-            <Text style={styles.infoLabel}>Email:</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.infoValue}>{emailInput}</Text>
-              <TouchableOpacity onPress={() => setEmailEditModal(true)} style={styles.usernameEditBtn}>
-                <Text style={styles.usernameEditIcon}>✎</Text>
+          <View style={styles.infoItem}>
+            <MaterialCommunityIcons name="email-outline" size={18} color="#B1B8C4" />
+            <Text style={styles.infoValue}>{emailInput}</Text>
+            {!onlyMain && (
+              <TouchableOpacity onPress={() => setEmailEditModal(true)}>
+                <MaterialCommunityIcons name="pencil" size={18} color="#1E69DE" />
               </TouchableOpacity>
-            </View>
+            )}
           </View>
-          <View style={styles.infoBlock}>
-            <Text style={styles.infoLabel}>Зарегистрирован:</Text>
-            <Text style={styles.infoValue}>{user.createdAt && new Date(user.createdAt).toLocaleDateString('ru-RU')}</Text>
+          <View style={styles.infoItem}>
+            <MaterialCommunityIcons name="calendar-check-outline" size={18} color="#B1B8C4" />
+            <Text style={styles.infoValue}>
+              {user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU') : ''}
+            </Text>
           </View>
-        </>
-      )}
+        </View>
 
-      {/* Модалка никнейма */}
-      <Modal visible={usernameEditModal} animationType="fade" transparent onRequestClose={() => setUsernameEditModal(false)}>
-        <TouchableOpacity style={styles.modalBG} activeOpacity={1} onPress={() => setUsernameEditModal(false)}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+          <Text style={styles.logoutText}>Выйти</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Никнейм */}
+      <Modal visible={usernameEditModal} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.modalBG}
+          activeOpacity={1}
+          onPress={() => setUsernameEditModal(false)}
+        >
           <View style={styles.modalBox}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 8, color: '#1E69DE' }}>Новый никнейм</Text>
+            <Text style={styles.modalTitle}>Новый никнейм</Text>
             <TextInput
               value={usernameInput}
               onChangeText={setUsernameInput}
@@ -250,18 +291,30 @@ const UserProfile: React.FC<{
               autoFocus
               editable={!isSavingUsername}
             />
-            <TouchableOpacity style={[styles.saveBtn, isSavingUsername && { opacity: 0.7 }]} onPress={onChangeUsername} disabled={isSavingUsername}>
-              {isSavingUsername ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Сохранить</Text>}
+            <TouchableOpacity
+              style={[styles.saveBtn, isSavingUsername && { opacity: 0.7 }]}
+              onPress={onChangeUsername}
+              disabled={isSavingUsername}
+            >
+              {isSavingUsername ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.saveBtnText}>Сохранить</Text>
+              )}
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* Модалка email */}
-      <Modal visible={emailEditModal} animationType="fade" transparent onRequestClose={() => setEmailEditModal(false)}>
-        <TouchableOpacity style={styles.modalBG} activeOpacity={1} onPress={() => setEmailEditModal(false)}>
+      {/* Email */}
+      <Modal visible={emailEditModal} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.modalBG}
+          activeOpacity={1}
+          onPress={() => setEmailEditModal(false)}
+        >
           <View style={styles.modalBox}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 8, color: '#1E69DE' }}>Новый Email</Text>
+            <Text style={styles.modalTitle}>Новый Email</Text>
             <TextInput
               value={emailInput}
               onChangeText={setEmailInput}
@@ -272,24 +325,36 @@ const UserProfile: React.FC<{
               keyboardType="email-address"
               editable={!isSavingEmail}
             />
-            <TouchableOpacity style={[styles.saveBtn, isSavingEmail && { opacity: 0.7 }]} onPress={onChangeEmail} disabled={isSavingEmail}>
-              {isSavingEmail ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Сохранить</Text>}
+            <TouchableOpacity
+              style={[styles.saveBtn, isSavingEmail && { opacity: 0.7 }]}
+              onPress={onChangeEmail}
+              disabled={isSavingEmail}
+            >
+              {isSavingEmail ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.saveBtnText}>Сохранить</Text>
+              )}
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* Выбор аватара */}
-      <Modal visible={modalVisible} animationType="fade" transparent>
-        <TouchableOpacity style={styles.modalBG} onPress={() => setModalVisible(false)}>
+      {/* Меню выбора */}
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.modalBG}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
           <View style={styles.modalBox}>
-            <TouchableOpacity onPress={takePhoto} style={styles.modalBtn}>
+            <TouchableOpacity onPress={openCamera} style={styles.modalBtn}>
               <Text style={styles.modalBtnText}>Сделать снимок</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={pickImage} style={styles.modalBtn}>
+            <TouchableOpacity onPress={openImageLibrary} style={styles.modalBtn}>
               <Text style={styles.modalBtnText}>Выбрать из галереи</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={pickFile} style={styles.modalBtn}>
+            <TouchableOpacity onPress={openDocumentPicker} style={styles.modalBtn}>
               <Text style={styles.modalBtnText}>Выбрать из файла</Text>
             </TouchableOpacity>
           </View>
@@ -300,100 +365,134 @@ const UserProfile: React.FC<{
 };
 
 const styles = StyleSheet.create({
-  container: {
+  outer: {
+    flex: 1,
     alignItems: 'center',
-    marginTop: 18,
+    justifyContent: 'flex-start',
+    paddingTop: 32,
+    backgroundColor: '#F4F7FA',
+  },
+  card: {
+    width: '94%',
     backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 24,
-    marginHorizontal: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    borderRadius: 22,
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    shadowColor: '#1E69DE',
+    shadowOpacity: 0.11,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 7,
+  },
+  avatarWrap: {
+    marginBottom: 12,
+    shadowColor: '#1E69DE',
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
   avatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 40,
-    backgroundColor: '#eee',
-    marginBottom: 10,
+    width: 94,
+    height: 94,
+    borderRadius: 48,
+    backgroundColor: '#eaf2ff',
+    borderWidth: 2,
+    borderColor: '#1E69DE',
   },
   editBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: 3,
+    right: 3,
     backgroundColor: '#1E69DE',
     borderRadius: 12,
-    width: 24,
-    height: 24,
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#fff',
   },
   name: {
-    fontSize: 21,
+    fontSize: 24,
     fontWeight: '700',
     color: '#1E69DE',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   usernameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 19,
   },
   username: {
-    color: '#7e8ca4',
+    color: '#A4ADC1',
     fontWeight: '600',
+    fontSize: 17,
   },
-  usernameEditBtn: {
-    marginLeft: 8,
-    padding: 4,
-  },
-  usernameEditIcon: {
-    fontSize: 16,
-    color: '#1E69DE',
-    fontWeight: 'bold',
-  },
-  infoBlock: {
+  info: {
     width: '100%',
-    flexDirection: 'row',
-    marginTop: 7,
-    justifyContent: 'space-between',
-    borderBottomColor: '#f2f2f4',
-    borderBottomWidth: 1,
-    paddingBottom: 6,
+    marginVertical: 8,
   },
-  infoLabel: {
-    color: '#8592a8',
-    fontSize: 15,
-    fontWeight: '600',
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F6F8FC',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 7,
   },
   infoValue: {
-    color: '#262626',
+    color: '#282D3C',
     fontSize: 15,
     fontWeight: '500',
+    flex: 1,
+  },
+  logoutBtn: {
+    marginTop: 26,
+    backgroundColor: '#FF4C5B',
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 62,
+    alignItems: 'center',
+    shadowColor: '#F45C6B',
+    shadowOpacity: 0.21,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  logoutText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: 'bold',
   },
   modalBG: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: 'rgba(0,0,0,0.22)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalBox: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 14,
-    width: 260,
-    elevation: 4,
+    borderRadius: 17,
+    padding: 18,
+    width: 280,
+    elevation: 5,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontWeight: 'bold',
+    fontSize: 19,
+    marginBottom: 10,
+    color: '#1E69DE',
   },
   modalBtn: {
     paddingVertical: 14,
     alignItems: 'center',
     borderBottomColor: '#eee',
     borderBottomWidth: 1,
+    width: 220,
   },
   modalBtnText: {
     fontSize: 17,
@@ -409,11 +508,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1E69DE',
     backgroundColor: '#f7faff',
+    width: 220,
   },
   saveBtn: {
     backgroundColor: '#1E69DE',
     borderRadius: 10,
-    paddingVertical: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 36,
     alignItems: 'center',
   },
   saveBtnText: {

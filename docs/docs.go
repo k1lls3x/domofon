@@ -461,28 +461,29 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Требуется Access Token. Передайте access_token в заголовке Authorization в формате: 'Bearer {ваш токен}'",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "users"
                 ],
-                "summary": "Получить профиль текущего пользователя",
+                "summary": "Получить профиль текущего пользователя (личный кабинет)",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Профиль пользователя",
                         "schema": {
                             "$ref": "#/definitions/domofon_internal_db.User"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Неавторизован",
                         "schema": {
                             "type": "string"
                         }
                     },
                     "404": {
-                        "description": "User not found",
+                        "description": "Пользователь не найден",
                         "schema": {
                             "type": "string"
                         }
@@ -497,6 +498,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Требуется Access Token (Bearer). Отправьте файл аватара в поле 'avatar' формы (формат jpg/png/webp).",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -518,7 +520,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "avatar_url — URL нового аватара",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -527,19 +529,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad request",
+                        "description": "Некорректные данные",
                         "schema": {
                             "type": "string"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Неавторизован",
                         "schema": {
                             "type": "string"
                         }
                     },
                     "500": {
-                        "description": "Internal error",
+                        "description": "Внутренняя ошибка",
                         "schema": {
                             "type": "string"
                         }
@@ -552,25 +554,92 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Требуется Access Token (Bearer)",
                 "tags": [
                     "users"
                 ],
                 "summary": "Удалить аватар пользователя",
                 "responses": {
                     "204": {
-                        "description": "No Content",
+                        "description": "Аватар успешно удалён",
                         "schema": {
                             "type": "string"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Неавторизован",
                         "schema": {
                             "type": "string"
                         }
                     },
                     "500": {
-                        "description": "Internal error",
+                        "description": "Внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me/username": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Требуется access token. Username должен быть уникальным. Формат запроса: {\"username\": \"новый_username\"}",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Сменить username текущего пользователя",
+                "parameters": [
+                    {
+                        "description": "Новый username",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Username already exists",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка",
                         "schema": {
                             "type": "string"
                         }

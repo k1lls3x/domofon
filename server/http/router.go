@@ -8,7 +8,6 @@ import (
 	"domofon/internal/middleware"
 	"net/http"
 	"time"
-
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgxpool"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -48,7 +47,7 @@ func NewRouter(pool *pgxpool.Pool) *mux.Router {
 	r.HandleFunc("/auth/login",                     authHandler.Login).Methods("POST")
 	r.HandleFunc("/auth/forgot-password",           authHandler.ForgotPassword).Methods("POST")
 	r.HandleFunc("/auth/reset-password",            authHandler.ResetPassword).Methods("POST")
-	r.HandleFunc("/users",                          userHandler.CreateUser).Methods("POST") // Если это регистрация
+	r.HandleFunc("/users",                          userHandler.CreateUser).Methods("POST")
 	r.HandleFunc("/auth/refresh", authHandler.Refresh).Methods("POST")
 	r.HandleFunc("/auth/logout", authHandler.Logout).Methods("POST")
 
@@ -63,12 +62,20 @@ func NewRouter(pool *pgxpool.Pool) *mux.Router {
 	protected.HandleFunc("/users/{id}", userHandler.DeleteUser).Methods("DELETE")
 	protected.HandleFunc("/users/me/avatar", userHandler.UploadAvatar).Methods("POST")
 	protected.HandleFunc("/users/me/avatar", userHandler.DeleteAvatar).Methods("DELETE")
-r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
+	protected.HandleFunc("/users/me/username", userHandler.ChangeUsername).Methods("POST")
+	protected.HandleFunc("/users/me/fullname", userHandler.UpdateFullName).Methods("POST")
+	protected.HandleFunc("/users/me/email", userHandler.UpdateEmail).Methods("POST")
 
-	// Auth endpoints требующие авторизации
+avatarHandler := http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads")))
+r.PathPrefix("/uploads/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+    w.Header().Set("Cache-Control", "public, max-age=604800")
+    avatarHandler.ServeHTTP(w, r)
+}))
+
+
+
 	protected.HandleFunc("/auth/change-password", authHandler.ChangePassword).Methods("POST")
-
-	// (Если добавятся ещё защищённые ручки — добавляй сюда)
 
 	return r
 }

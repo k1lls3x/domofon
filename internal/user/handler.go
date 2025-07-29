@@ -167,12 +167,13 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetCurrentUser godoc
-// @Summary      Получить профиль текущего пользователя
+// @Summary      Получить профиль текущего пользователя (личный кабинет)
+// @Description  Требуется Access Token. Передайте access_token в заголовке Authorization в формате: 'Bearer {ваш токен}'
 // @Tags         users
 // @Produce      json
-// @Success      200  {object}  db.User
-// @Failure      401  {string}  string "Unauthorized"
-// @Failure      404  {string}  string "User not found"
+// @Success      200  {object}  db.User    "Профиль пользователя"
+// @Failure      401  {string}  string     "Неавторизован"
+// @Failure      404  {string}  string     "Пользователь не найден"
 // @Security     BearerAuth
 // @Router       /users/me [get]
 func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
@@ -192,14 +193,15 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 
 // UploadAvatar godoc
 // @Summary      Загрузить или обновить аватар пользователя
+// @Description  Требуется Access Token (Bearer). Отправьте файл аватара в поле 'avatar' формы (формат jpg/png/webp).
 // @Tags         users
-// @Accept       mpfd
+// @Accept       multipart/form-data
 // @Produce      json
 // @Param        avatar  formData  file  true  "Файл аватара (jpg/png/webp)"
-// @Success      200  {object}  map[string]string
-// @Failure      400  {string}  string "Bad request"
-// @Failure      401  {string}  string "Unauthorized"
-// @Failure      500  {string}  string "Internal error"
+// @Success      200  {object}  map[string]string  "avatar_url — URL нового аватара"
+// @Failure      400  {string}  string             "Некорректные данные"
+// @Failure      401  {string}  string             "Неавторизован"
+// @Failure      500  {string}  string             "Внутренняя ошибка"
 // @Security     BearerAuth
 // @Router       /users/me/avatar [post]
 func (h *UserHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
@@ -221,6 +223,13 @@ func (h *UserHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
     if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp" {
         http.Error(w, "Invalid file type", http.StatusBadRequest)
         return
+    }
+
+    // 1. Получить старый путь к аватару
+    oldAvatar, err := h.service.GetUserAvatarURL(r.Context(), int32(userID))
+    if err == nil && oldAvatar != "" {
+        // 2. Удалить старый файл (но не удалять если он дефолтный, если есть такая логика)
+        _ = os.Remove("." + oldAvatar)
     }
 
     filename := fmt.Sprintf("avatar_%d%s", userID, ext)
@@ -249,12 +258,14 @@ func (h *UserHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte(fmt.Sprintf(`{"avatar_url":"%s"}`, avatarURL)))
 }
 
+
 // DeleteAvatar godoc
 // @Summary      Удалить аватар пользователя
+// @Description  Требуется Access Token (Bearer)
 // @Tags         users
-// @Success      204  {string}  string "No Content"
-// @Failure      401  {string}  string "Unauthorized"
-// @Failure      500  {string}  string "Internal error"
+// @Success      204  {string}  string  "Аватар успешно удалён"
+// @Failure      401  {string}  string  "Неавторизован"
+// @Failure      500  {string}  string  "Внутренняя ошибка"
 // @Security     BearerAuth
 // @Router       /users/me/avatar [delete]
 func (h *UserHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
@@ -273,4 +284,129 @@ func (h *UserHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
         return
     }
     w.WriteHeader(http.StatusNoContent)
+}
+
+// ChangeUsername godoc
+// @Summary      Сменить username текущего пользователя
+// @Description  Требуется access token. Username должен быть уникальным. Формат запроса: {"username": "новый_username"}
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        body  body  map[string]string  true  "Новый username"
+// @Success      200   {string}  string "OK"
+// @Failure      400   {string}  string "Некорректные данные"
+// @Failure      401   {string}  string "Неавторизован"
+// @Failure      409   {string}  string "Username already exists"
+// @Failure      500   {string}  string "Внутренняя ошибка"
+// @Security     BearerAuth
+// @Router       /users/me/username [post]
+func (h *UserHandler) ChangeUsername(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var req struct {
+		Username string `json:"username"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+	err := h.service.ChangeUsername(r.Context(), int32(userID), req.Username)
+	if err != nil {
+		if strings.Contains(err.Error(), "username is already taken") {
+			http.Error(w, "Username already exists", http.StatusConflict) // 409 Conflict
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"OK"}`))
+}
+
+// UpdateFullName godoc
+// @Summary      Обновить имя и фамилию текущего пользователя
+// @Description  Требуется access token. Формат: {"first_name": "Имя", "last_name": "Фамилия"}
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        body  body  map[string]string  true  "Новое имя и фамилия"
+// @Success      200   {string}  string "OK"
+// @Failure      400   {string}  string "Некорректные данные"
+// @Failure      401   {string}  string "Неавторизован"
+// @Failure      500   {string}  string "Внутренняя ошибка"
+// @Security     BearerAuth
+// @Router       /users/me/fullname [post]
+func (h *UserHandler) UpdateFullName(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var req struct {
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	err := h.service.UpdateFullName(r.Context(), int32(userID), req.FirstName, req.LastName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"OK"}`))
+}
+
+
+// UpdateEmail godoc
+//
+// @Summary      Смена email текущего пользователя
+// @Description  Обновляет email авторизованного пользователя
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Param        request body struct{Email string `json:"email"`} true "Новый email"
+// @Success      200 "Email успешно обновлён"
+// @Failure      400 {string} string "Некорректный email"
+// @Failure      401 {string} string "Пользователь не авторизован"
+// @Failure      409 {string} string "Email уже занят"
+// @Failure      500 {string} string "Внутренняя ошибка сервера"
+// @Security     BearerAuth
+// @Router       /users/me/email [post]
+func (h *UserHandler) UpdateEmail(w http.ResponseWriter, r *http.Request) {
+userID, ok := middleware.UserIDFromContext(r.Context())
+if !ok {
+    http.Error(w, "unauthorized", http.StatusUnauthorized)
+    return
+}
+
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if req.Email == "" || !strings.Contains(req.Email, "@") {
+		http.Error(w, "invalid email", http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.UpdateEmail(r.Context(), int(userID), req.Email)
+	if err != nil {
+		if err.Error() == "email is already taken" {
+			http.Error(w, "email already in use", http.StatusConflict)
+			return
+		}
+		http.Error(w, "failed to update email", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

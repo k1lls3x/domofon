@@ -41,6 +41,22 @@ func (q *Queries) ChangePasswordByPhone(ctx context.Context, arg ChangePasswordB
 	return err
 }
 
+const changeUsername = `-- name: ChangeUsername :exec
+UPDATE users
+SET username = $2
+WHERE id = $1
+`
+
+type ChangeUsernameParams struct {
+	ID       int32
+	Username string
+}
+
+func (q *Queries) ChangeUsername(ctx context.Context, arg ChangeUsernameParams) error {
+	_, err := q.db.Exec(ctx, changeUsername, arg.ID, arg.Username)
+	return err
+}
+
 const createPasswordResetToken = `-- name: CreatePasswordResetToken :exec
 INSERT INTO password_reset_tokens (user_id, token, expires_at)
 VALUES ($1, $2, $3)
@@ -423,6 +439,22 @@ func (q *Queries) SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenPara
 	return err
 }
 
+const updateEmail = `-- name: UpdateEmail :exec
+UPDATE users
+SET email = $2
+WHERE id = $1
+`
+
+type UpdateEmailParams struct {
+	ID    int32
+	Email string
+}
+
+func (q *Queries) UpdateEmail(ctx context.Context, arg UpdateEmailParams) error {
+	_, err := q.db.Exec(ctx, updateEmail, arg.ID, arg.Email)
+	return err
+}
+
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET username = $2,
@@ -486,6 +518,24 @@ type UpdateUserAvatarURLParams struct {
 
 func (q *Queries) UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) error {
 	_, err := q.db.Exec(ctx, updateUserAvatarURL, arg.ID, arg.AvatarUrl)
+	return err
+}
+
+const updateUserFullName = `-- name: UpdateUserFullName :exec
+UPDATE users
+SET first_name = $2,
+    last_name  = $3
+WHERE id = $1
+`
+
+type UpdateUserFullNameParams struct {
+	ID        int32
+	FirstName pgtype.Text
+	LastName  pgtype.Text
+}
+
+func (q *Queries) UpdateUserFullName(ctx context.Context, arg UpdateUserFullNameParams) error {
+	_, err := q.db.Exec(ctx, updateUserFullName, arg.ID, arg.FirstName, arg.LastName)
 	return err
 }
 

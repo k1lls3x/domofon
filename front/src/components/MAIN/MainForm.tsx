@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform, Alert
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import UserProfile, { User } from './UserProfile';
-
+import CustomTabBar from './CustomTabBar';
 type TabKey = 'home' | 'video' | 'history' | 'devices' | 'profile';
 
 interface Event {
@@ -74,47 +74,82 @@ const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
     Alert.alert('Дверь открыта', 'Добро пожаловать!');
   };
 
+  // --- Главная вкладка ---
+  const renderHome = () => (
+    <ScrollView contentContainerStyle={styles.scroll}>
+      {/* Карточка приветствия */}
+      <View style={styles.card}>
+        <Image
+          style={styles.avatar}
+          source={{
+            uri: user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.firstName || user?.username}&background=1E69DE&color=fff&rounded=true&size=128`,
+          }}
+        />
+        <Text style={styles.greeting}>Здравствуйте,</Text>
+        <Text style={styles.name}>{user?.firstName} {user?.lastName}</Text>
+      </View>
+
+      {/* Карточка "Домофон" */}
+      <View style={styles.card}>
+        <Text style={styles.actionTitle}>Домофон</Text>
+        <Text style={styles.actionSubtitle}>Быстро открыть дверь</Text>
+        <TouchableOpacity
+          activeOpacity={0.88}
+          style={styles.doorButton}
+          onPress={handleOpenDoor}
+        >
+          <MaterialCommunityIcons name="door" size={24} color="#fff" style={{ marginRight: 7 }} />
+          <Text style={styles.doorButtonText}>Открыть дверь</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Статистика */}
+      <View style={styles.statsRow}>
+        <View style={styles.statCard}>
+          <MaterialCommunityIcons name="phone-in-talk-outline" size={22} color="#1E69DE" style={{ marginBottom: 3 }} />
+          <Text style={styles.statValue}>{events.filter(ev => ev.type === 'call').length}</Text>
+          <Text style={styles.statLabel}>Звонка сегодня</Text>
+        </View>
+        <View style={styles.statCard}>
+          <MaterialCommunityIcons name="lock-open-outline" size={22} color="#1E69DE" style={{ marginBottom: 3 }} />
+          <Text style={styles.statValue}>{events.filter(ev => ev.type === 'open').length}</Text>
+          <Text style={styles.statLabel}>Открыто дверей</Text>
+        </View>
+      </View>
+
+      <View style={styles.sectionDivider} />
+
+      {/* Последние события */}
+      <Text style={styles.eventsSectionTitle}>Последние события</Text>
+      {events.length === 0 && <Text style={{ color: '#8d98a8', marginBottom: 20 }}>Нет событий</Text>}
+      {events.map((ev, i) => (
+        <View key={i} style={styles.eventCard}>
+          <View style={styles.eventTypeIcon}>
+            <MaterialCommunityIcons
+              name={ev.type === 'call' ? 'phone-in-talk-outline' : 'lock-open-outline'}
+              size={22}
+              color={ev.type === 'call' ? '#1E69DE' : '#28c46c'}
+            />
+          </View>
+          <Image source={{ uri: ev.avatar }} style={styles.eventAvatar} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.eventText}>{ev.text}</Text>
+            <Text style={styles.eventTime}>{ev.time}</Text>
+          </View>
+        </View>
+      ))}
+    </ScrollView>
+  );
+
+  // --- Остальные табы ---
   const renderTabContent = () => {
     if (loading) return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text>Загрузка...</Text>
       </View>
     );
-
     switch (activeTab) {
-      case 'home':
-        return (
-          <ScrollView contentContainerStyle={styles.scroll}>
-            {user && <UserProfile user={user} onlyMain />}
-            <LinearGradient colors={['#f5fbff', '#d2e4fa']} style={styles.actionCard}>
-              <Text style={styles.actionTitle}>Домофон</Text>
-              <Text style={styles.actionSubtitle}>Быстро открыть дверь</Text>
-              <TouchableOpacity style={styles.doorButton} onPress={handleOpenDoor}>
-                <Text style={styles.doorButtonText}>Открыть дверь</Text>
-              </TouchableOpacity>
-            </LinearGradient>
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>{events.filter(ev => ev.type === 'call').length}</Text>
-                <Text style={styles.statLabel}>Звонка сегодня</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>{events.filter(ev => ev.type === 'open').length}</Text>
-                <Text style={styles.statLabel}>Открыто дверей</Text>
-              </View>
-            </View>
-            <Text style={styles.eventsTitle}>События</Text>
-            {events.map((ev, i) => (
-              <View key={i} style={styles.eventCard}>
-                <Image source={{ uri: ev.avatar }} style={styles.eventAvatar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.eventText}>{ev.text}</Text>
-                  <Text style={styles.eventTime}>{ev.time}</Text>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-        );
+      case 'home': return renderHome();
       case 'video':
         return (
           <View style={styles.centerTab}>
@@ -158,92 +193,134 @@ const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
         return (
           <ScrollView contentContainerStyle={styles.scroll}>
             {user && <UserProfile user={user} onAvatarChanged={handleAvatarChanged} />}
-            <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
-              <Text style={styles.logoutText}>Выйти</Text>
-            </TouchableOpacity>
           </ScrollView>
         );
+      default: return null;
     }
   };
 
-  const tabs = [
-    { key: 'home', label: 'Главная', icon: 'home-outline' },
-    { key: 'video', label: 'Видео', icon: 'video-outline' },
-    { key: 'history', label: 'История', icon: 'history' },
-    { key: 'devices', label: 'Устройства', icon: 'devices' },
-    { key: 'profile', label: 'Профиль', icon: 'account-circle-outline' },
-  ] as const;
-
   return (
-    <View style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f7f9fb' }}>
       <View style={{ flex: 1 }}>{renderTabContent()}</View>
-      <View style={styles.tabBar}>
-        {tabs.map(tab => (
-          <TouchableOpacity
-            key={tab.key}
-            style={styles.tabBarItem}
-            activeOpacity={0.85}
-            onPress={() => setActiveTab(tab.key as TabKey)}
-          >
-            <MaterialCommunityIcons
-              name={tab.icon as any}
-              size={28}
-              color={activeTab === tab.key ? '#1E69DE' : '#B0B7C2'}
-            />
-            <Text style={[
-              styles.tabBarLabel,
-              activeTab === tab.key && { color: '#1E69DE' }
-            ]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
+      <CustomTabBar active={activeTab} onChange={setActiveTab} />
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  // ... скопируй свои стили отсюда ...
-  scroll: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 28 },
-  actionCard: {
-    backgroundColor: '#eaf2ff',
-    borderRadius: 18,
-    padding: 22,
-    marginVertical: 18,
+  scroll: {
+    paddingHorizontal: 14,
+    paddingBottom: 28,
+    paddingTop: 32,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    paddingVertical: 22,
+    paddingHorizontal: 24,
+    marginBottom: 16,
     alignItems: 'center',
-    shadowColor: '#0d2d62',
-    shadowOpacity: 0.04,
-    shadowRadius: 9,
+    shadowColor: '#185acb',
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 5 },
-    elevation: 1,
+    elevation: 5,
   },
-  actionTitle: { fontSize: 20, fontWeight: '700', color: '#1E69DE', marginBottom: 2 },
-  actionSubtitle: { color: '#6a7e95', fontSize: 14, marginBottom: 18 },
+  avatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 40,
+    backgroundColor: '#eaf2ff',
+    borderWidth: 2,
+    borderColor: '#d2e4fa',
+    marginBottom: 10,
+  },
+  greeting: {
+    color: '#7287a6',
+    fontSize: 16,
+    marginBottom: 2,
+    fontWeight: '500',
+  },
+  name: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1869de',
+    letterSpacing: 0.12,
+    marginBottom: 2,
+  },
+  actionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1E69DE',
+    marginBottom: 2,
+  },
+  actionSubtitle: {
+    color: '#7ea1ca',
+    fontSize: 15,
+    marginBottom: 17,
+  },
   doorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#1E69DE',
-    paddingHorizontal: 36,
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginTop: 8,
+    paddingHorizontal: 34,
+    paddingVertical: 15,
+    borderRadius: 13,
+    marginTop: 7,
+    elevation: 2,
+    shadowColor: '#1E69DE',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
   },
-  doorButtonText: { color: '#fff', fontWeight: '700', fontSize: 17, letterSpacing: 0.5 },
-  statsRow: { flexDirection: 'row', marginBottom: 16, marginTop: 10, gap: 13 },
+  doorButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 18,
+    letterSpacing: 0.07,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginBottom: 9,
+    marginTop: 8,
+    gap: 12,
+  },
   statCard: {
     flex: 1,
     backgroundColor: '#f7f9fb',
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: 13,
+    padding: 16,
     alignItems: 'center',
     shadowColor: '#1E69DE',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 1,
+    marginHorizontal: 3,
   },
-  statValue: { color: '#1E69DE', fontWeight: '800', fontSize: 24, marginBottom: 3 },
-  statLabel: { color: '#7e8ca4', fontWeight: '600', fontSize: 13 },
-  eventsTitle: { fontSize: 18, color: '#222', fontWeight: '700', marginTop: 22, marginBottom: 6, marginLeft: 2 },
+  statValue: {
+    color: '#1E69DE',
+    fontWeight: '900',
+    fontSize: 21,
+    marginBottom: 2,
+  },
+  statLabel: {
+    color: '#7e8ca4',
+    fontWeight: '600',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  sectionDivider: {
+    height: 18,
+  },
+  eventsSectionTitle: {
+    fontSize: 18,
+    color: '#1E2330',
+    fontWeight: '800',
+    marginTop: 8,
+    marginBottom: 8,
+    marginLeft: 2,
+    letterSpacing: 0.13,
+  },
   eventCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -251,15 +328,37 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     padding: 13,
     marginBottom: 8,
-    shadowColor: '#000',
+    shadowColor: '#1e69de',
     shadowOpacity: 0.03,
     shadowRadius: 7,
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
-  eventAvatar: { width: 38, height: 38, borderRadius: 19, marginRight: 13, backgroundColor: '#e2e4f0' },
-  eventText: { fontSize: 15, color: '#282a36', fontWeight: '600' },
-  eventTime: { fontSize: 13, color: '#8d98a8', marginTop: 2, fontWeight: '500' },
+  eventTypeIcon: {
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eventAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 9,
+    backgroundColor: '#e2e4f0',
+    borderWidth: 2,
+    borderColor: '#d2e4fa',
+  },
+  eventText: {
+    fontSize: 15,
+    color: '#282a36',
+    fontWeight: '600',
+  },
+  eventTime: {
+    fontSize: 13,
+    color: '#8d98a8',
+    marginTop: 2,
+    fontWeight: '500',
+  },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#fff',
@@ -279,9 +378,24 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   tabBarItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabBarLabel: { fontSize: 12, color: '#B0B7C2', fontWeight: '700', marginTop: 2 },
-  centerTab: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fb' },
-  tabTitle: { fontSize: 21, fontWeight: '700', color: '#1E69DE', marginBottom: 24 },
+  tabBarLabel: {
+    fontSize: 12,
+    color: '#B0B7C2',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  centerTab: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f7f9fb',
+  },
+  tabTitle: {
+    fontSize: 21,
+    fontWeight: '700',
+    color: '#1E69DE',
+    marginBottom: 24,
+  },
   videoStub: {
     width: 260,
     height: 180,
@@ -299,20 +413,6 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   deviceButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  logoutButton: {
-    backgroundColor: '#E43A4B',
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 36,
-    alignSelf: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  logoutText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 });
 
 export default MainForm;

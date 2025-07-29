@@ -3,7 +3,7 @@ package user
 import (
     "context"
     "domofon/internal/db"
-
+		"fmt"
 )
 
 type UserService struct {
@@ -40,4 +40,31 @@ func (s *UserService) GetUserAvatarURL(ctx context.Context, userID int32) (strin
 
 func (s *UserService) UpdateUserAvatarURL(ctx context.Context, userID int32, avatarURL string) error {
 	return s.repo.UpdateUserAvatarURL(ctx, userID, avatarURL)
+}
+
+func (s *UserService) ChangeUsername(ctx context.Context, userID int32, username string) error {
+	// Проверка на уникальность
+	taken, err := s.repo.IsUsernameTaken(ctx, username)
+	if err != nil {
+		return err
+	}
+	if taken {
+		return fmt.Errorf("username is already taken")
+	}
+	return s.repo.ChangeUsername(ctx, userID, username)
+}
+
+func (s *UserService) UpdateFullName(ctx context.Context, userID int32, firstName, lastName string) error {
+	return s.repo.UpdateFullName(ctx, userID, firstName, lastName)
+}
+
+func (s *UserService) UpdateEmail(ctx context.Context, userID int, email string) error {
+	isTaken, err := s.repo.IsEmailTaken(ctx, email)
+	if err != nil {
+		return fmt.Errorf("failed to check email uniqueness: %w", err)
+	}
+	if isTaken {
+		return fmt.Errorf("email is already taken")
+	}
+	return s.repo.UpdateEmail(userID, email)
 }

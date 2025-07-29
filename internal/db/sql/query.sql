@@ -98,3 +98,19 @@ UPDATE users SET avatar_url = $2 WHERE id = $1;
 
 -- name: GetUserByID :one
 SELECT * FROM users WHERE id = $1;
+
+-- name: ChangeUsername :exec
+UPDATE users
+SET username = $2
+WHERE id = $1;
+
+-- name: UpdateUserFullName :exec
+UPDATE users
+SET first_name = $2,
+    last_name  = $3
+WHERE id = $1;
+
+-- name: UpdateEmail :exec
+UPDATE users
+SET email = $2
+WHERE id = $1;

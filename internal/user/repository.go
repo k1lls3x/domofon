@@ -17,6 +17,11 @@ type UserRepository interface {
 	UpdateUserAvatarURL(ctx context.Context, userID int32, avatarURL string) error
 	GetUserAvatarURL(ctx context.Context, userID int32) (string, error)
 	UpdateAvatarURL(ctx context.Context, userID int64, avatarURL string) error
+	ChangeUsername(ctx context.Context, userID int32, username string) error
+	IsUsernameTaken(ctx context.Context, username string) (bool, error)
+	UpdateFullName(ctx context.Context, userID int32, firstName, lastName string) error
+	UpdateEmail(userID int, email string) error
+	 IsEmailTaken(ctx context.Context, email string) (bool, error)
 }
 
 type userRepository struct {
@@ -82,3 +87,49 @@ func (r *userRepository) UpdateUserAvatarURL(ctx context.Context, userID int32, 
 	})
 }
 
+func (r *userRepository) ChangeUsername(ctx context.Context, userID int32, username string) error {
+    return r.queries.ChangeUsername(ctx, db.ChangeUsernameParams{
+        ID: userID,
+        Username: username,
+    })
+}
+
+
+func (r *userRepository) IsUsernameTaken(ctx context.Context, username string) (bool, error) {
+	user, err := r.queries.GetUserByUsername(ctx, username)
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return false, nil
+		}
+		return false, err
+	}
+	return user.ID != 0, nil
+}
+
+func (r *userRepository) IsEmailTaken(ctx context.Context, email string) (bool, error) {
+	user, err := r.queries.GetUserByEmail(ctx, email)
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return false, nil
+		}
+		return false, err
+	}
+	return user.ID != 0, nil
+}
+
+
+func (r *userRepository) UpdateFullName(ctx context.Context, userID int32, firstName, lastName string) error {
+	return r.queries.UpdateUserFullName(ctx, db.UpdateUserFullNameParams{
+		ID:        userID,
+		FirstName: pgtype.Text{String: firstName, Valid: firstName != ""},
+		LastName:  pgtype.Text{String: lastName, Valid: lastName != ""},
+	})
+}
+
+func (r *userRepository) UpdateEmail(userID int, email string) error {
+	ctx := context.Background()
+	return r.queries.UpdateEmail(ctx,  db.UpdateEmailParams{
+	ID : int32(userID),
+	Email: email,
+	})
+}

@@ -549,39 +549,42 @@ paths:
       - users
   /users/me:
     get:
+      description: 'Требуется Access Token. Передайте access_token в заголовке Authorization
+        в формате: ''Bearer {ваш токен}'''
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Профиль пользователя
           schema:
             $ref: '#/definitions/domofon_internal_db.User'
         "401":
-          description: Unauthorized
+          description: Неавторизован
           schema:
             type: string
         "404":
-          description: User not found
+          description: Пользователь не найден
           schema:
             type: string
       security:
       - BearerAuth: []
-      summary: Получить профиль текущего пользователя
+      summary: Получить профиль текущего пользователя (личный кабинет)
       tags:
       - users
   /users/me/avatar:
     delete:
+      description: Требуется Access Token (Bearer)
       responses:
         "204":
-          description: No Content
+          description: Аватар успешно удалён
           schema:
             type: string
         "401":
-          description: Unauthorized
+          description: Неавторизован
           schema:
             type: string
         "500":
-          description: Internal error
+          description: Внутренняя ошибка
           schema:
             type: string
       security:
@@ -592,6 +595,8 @@ paths:
     post:
       consumes:
       - multipart/form-data
+      description: Требуется Access Token (Bearer). Отправьте файл аватара в поле
+        'avatar' формы (формат jpg/png/webp).
       parameters:
       - description: Файл аватара (jpg/png/webp)
         in: formData
@@ -602,26 +607,69 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: avatar_url — URL нового аватара
           schema:
             additionalProperties:
               type: string
             type: object
         "400":
-          description: Bad request
+          description: Некорректные данные
           schema:
             type: string
         "401":
-          description: Unauthorized
+          description: Неавторизован
           schema:
             type: string
         "500":
-          description: Internal error
+          description: Внутренняя ошибка
           schema:
             type: string
       security:
       - BearerAuth: []
       summary: Загрузить или обновить аватар пользователя
+      tags:
+      - users
+  /users/me/username:
+    post:
+      consumes:
+      - application/json
+      description: 'Требуется access token. Username должен быть уникальным. Формат
+        запроса: {"username": "новый_username"}'
+      parameters:
+      - description: Новый username
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Некорректные данные
+          schema:
+            type: string
+        "401":
+          description: Неавторизован
+          schema:
+            type: string
+        "409":
+          description: Username already exists
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Сменить username текущего пользователя
       tags:
       - users
 swagger: "2.0"
