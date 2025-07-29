@@ -1,5 +1,4 @@
-// UserProfile.tsx (fixed uploadAvatar fallback)
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,13 +9,14 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../Theme.Context';
 
 export interface User {
   id: number;
@@ -35,8 +35,10 @@ const UserProfile: React.FC<{
   user: User;
   onlyMain?: boolean;
   onAvatarChanged?: (url: string) => void;
-  onLogout?: () => void;            // ← добавь сюда!
+  onLogout?: () => void;
 }> = ({ user, onlyMain, onAvatarChanged, onLogout }) => {
+  const { theme, toggleTheme } = useTheme();
+
   const [modalVisible, setModalVisible] = useState(false);
   const [avatar, setAvatar] = useState<string | undefined>(user.avatarUrl);
 
@@ -48,30 +50,36 @@ const UserProfile: React.FC<{
   const [emailInput, setEmailInput] = useState(user.email);
   const [isSavingEmail, setIsSavingEmail] = useState(false);
 
-  const navigation = useNavigation();
+  // Анимация тумблера
+  const [dark, setDark] = useState(theme.mode === 'dark');
+  const anim = useState(new Animated.Value(theme.mode === 'dark' ? 1 : 0))[0];
 
-  /**
-   * Мгновенно показываем локальный превью (uri) + уведомляем родителя,
-   * потом в фоне аплоадим снимок.
-   */
+  useEffect(() => {
+    setDark(theme.mode === 'dark');
+    Animated.timing(anim, {
+      toValue: theme.mode === 'dark' ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [theme.mode]);
+
+  useEffect(() => {
+    setAvatar(user.avatarUrl);
+  }, [user.avatarUrl]);
+
+  // Локальный превью для аватарки
   const showLocalPreview = (localUri: string) => {
     setAvatar(localUri);
     onAvatarChanged?.(localUri);
   };
 
-  // Выход из профиля
-const logout = async () => {
-  await AsyncStorage.multiRemove(['access_token', 'refresh_token']);
-  if (onLogout) {
-    onLogout();         // ← это вызовет функцию из MainForm
-  }
-};
+  // Выход
+  const logout = async () => {
+    await AsyncStorage.multiRemove(['access_token', 'refresh_token']);
+    if (onLogout) onLogout();
+  };
 
-
-  /**
-   * Загружаем аватар и корректно читаем URL из ответа.
-   * Убрали попытку «догадаться» имя файла, теперь доверяем только серверу.
-   */
+  // Загрузка аватарки
   const uploadAvatar = async (uri: string) => {
     try {
       const token = await AsyncStorage.getItem('access_token');
@@ -90,24 +98,20 @@ const logout = async () => {
         },
       });
 
-      // Берём url строго из ответа
-  let rawUrl = res.data?.avatar_url || res.data?.url || res.data?.fullUrl;
-     if (!rawUrl) throw new Error('Сервер не вернул ссылку на файл');
-     // Если url начинается с '/', подставим API_URL
-     if (rawUrl.startsWith('/')) {
-       rawUrl = API_URL + rawUrl;
-     }
-     await Image.prefetch(rawUrl).catch(() => {});
-     const finalUrl = `${rawUrl}?v=${Date.now()}`;
-     setAvatar(finalUrl);
+      let rawUrl = res.data?.avatar_url || res.data?.url || res.data?.fullUrl;
+      if (!rawUrl) throw new Error('Сервер не вернул ссылку на файл');
+      if (rawUrl.startsWith('/')) {
+        rawUrl = API_URL + rawUrl;
+      }
+      const finalUrl = `${rawUrl}?v=${Date.now()}`;
+      setAvatar(finalUrl);
       onAvatarChanged?.(finalUrl);
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.message || e.message || 'Не удалось загрузить аватар');
-      console.error(e);
     }
   };
 
-  /** ---------- PICKERS (без изменений, но используют showLocalPreview) ---------- */
+  // PICKERS
   const openImageLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return Alert.alert('Нет доступа', 'Разрешите доступ к фото');
@@ -143,7 +147,7 @@ const logout = async () => {
     }
   };
 
-  // --------------- Изменение никнейма ---------------
+  // Логика изменений никнейма/email
   const onChangeUsername = async () => {
     const newUsername = usernameInput.trim();
     if (!newUsername) return Alert.alert('Ошибка', 'Введите новый никнейм');
@@ -166,7 +170,6 @@ const logout = async () => {
     }
   };
 
-  // --------------- Изменение email -----------------
   const onChangeEmail = async () => {
     const newEmail = emailInput.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
@@ -197,9 +200,65 @@ const logout = async () => {
     return `+7 (${d.slice(1, 4)})-${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`;
   };
 
+  // ...остальной код выше
+
+// ==== Кастомный тумблер ====
+const renderThemeToggle = () => {
+  const trackColor = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#ffe98c', '#222a39'],
+  });
+  const thumbPos = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [2, 32], // ширина - круг = 56-22 = 34; чуть отступа с краю
+  });
+  const thumbColor = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#ffd700', '#284269'],
+  });
+
   return (
-    <View style={styles.outer}>
-      <View style={styles.card}>
+    <View style={styles.themeSwitchRow}>
+      <Text
+        style={[
+          styles.themeSwitchLabel,
+          { color: theme.mode === 'light' ? '#1869DE' : '#fff' }
+        ]}
+      >
+        Сменить тему:
+      </Text>
+      <TouchableOpacity
+        style={styles.themeToggleBtn}
+        activeOpacity={0.88}
+        onPress={toggleTheme}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: dark }}
+      >
+        <MaterialCommunityIcons name="white-balance-sunny" size={20} color={dark ? "#bbb" : "#FFD93A"} />
+        <Animated.View style={[
+          styles.themeToggleTrack,
+          { backgroundColor: trackColor }
+        ]}>
+          <Animated.View
+            style={[
+              styles.themeToggleThumb,
+              {
+                left: thumbPos,
+                backgroundColor: thumbColor,
+                shadowColor: dark ? "#1e69de" : "#ffd700",
+              },
+            ]}
+          />
+        </Animated.View>
+        <MaterialCommunityIcons name="moon-waning-crescent" size={20} color={dark ? "#9ecfff" : "#aaa"} />
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+  return (
+    <View style={[styles.outer, { backgroundColor: theme.background }]}>
+      <View style={[styles.card, { backgroundColor: theme.cardBg, shadowColor: theme.shadow }]}>
         <TouchableOpacity
           disabled={!!onlyMain}
           onPress={() => setModalVisible(true)}
@@ -207,97 +266,117 @@ const logout = async () => {
           activeOpacity={0.8}
         >
           <Image
-            style={styles.avatar}
+            style={[styles.avatar, { borderColor: theme.icon, backgroundColor: theme.inputBg }]}
             source={{
               uri:
                 avatar ||
                 `https://ui-avatars.com/api/?name=${encodeURIComponent(
                   user.firstName || user.username,
                 )}&background=1E69DE&color=fff&rounded=true&size=128`,
-              cache: 'force-cache', // <- кешируем на стороне RN
+              cache: 'force-cache',
             }}
           />
           {!onlyMain && (
-            <View style={styles.editBadge}>
+            <View style={[styles.editBadge, { backgroundColor: theme.icon, borderColor: theme.cardBg }]}>
               <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
             </View>
           )}
         </TouchableOpacity>
 
-        <Text style={styles.name}>{`${user.firstName || ''} ${user.lastName || ''}`}</Text>
+        <Text style={[styles.name, { color: theme.icon }]}>{`${user.firstName || ''} ${user.lastName || ''}`}</Text>
 
         <View style={styles.usernameRow}>
-          <Text style={styles.username}>@{usernameInput}</Text>
+          <Text style={[styles.username, { color: theme.subtext }]}>@{usernameInput}</Text>
           {!onlyMain && (
             <TouchableOpacity onPress={() => setUsernameEditModal(true)}>
-              <MaterialCommunityIcons name="pencil" size={18} color="#1E69DE" />
+              <MaterialCommunityIcons name="pencil" size={18} color={theme.icon} />
             </TouchableOpacity>
           )}
         </View>
 
         <View style={styles.info}>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons name="phone-outline" size={18} color="#B1B8C4" />
-            <Text style={styles.infoValue}>{formatPhone(user.phone)}</Text>
+          <View style={[styles.infoItem, { backgroundColor: theme.inputBg }]}>
+            <MaterialCommunityIcons name="phone-outline" size={18} color={theme.icon} />
+            <Text style={[styles.infoValue, { color: theme.text }]}>{formatPhone(user.phone)}</Text>
           </View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons name="email-outline" size={18} color="#B1B8C4" />
-            <Text style={styles.infoValue}>{emailInput}</Text>
+          <View style={[styles.infoItem, { backgroundColor: theme.inputBg }]}>
+            <MaterialCommunityIcons name="email-outline" size={18} color={theme.icon} />
+            <Text style={[styles.infoValue, { color: theme.text }]}>{emailInput}</Text>
             {!onlyMain && (
               <TouchableOpacity onPress={() => setEmailEditModal(true)}>
-                <MaterialCommunityIcons name="pencil" size={18} color="#1E69DE" />
+                <MaterialCommunityIcons name="pencil" size={18} color={theme.icon} />
               </TouchableOpacity>
             )}
           </View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons name="calendar-check-outline" size={18} color="#B1B8C4" />
-            <Text style={styles.infoValue}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU') : ''}</Text>
+          <View style={[styles.infoItem, { backgroundColor: theme.inputBg }]}>
+            <MaterialCommunityIcons name="calendar-check-outline" size={18} color={theme.icon} />
+            <Text style={[styles.infoValue, { color: theme.text }]}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU') : ''}</Text>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-          <Text style={styles.logoutText}>Выйти</Text>
-        </TouchableOpacity>
+        {/* ---- Только кастомный тумблер ---- */}
+        {renderThemeToggle()}
+
+        {/* Кнопка выхода */}
+        {!onlyMain && (
+          <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.error }]} onPress={logout}>
+            <Text style={[styles.logoutText, { color: theme.buttonText }]}>Выйти</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ---- Модалки ---- */}
-      {/* Никнейм */}
       <Modal visible={usernameEditModal} transparent animationType="fade">
         <TouchableOpacity style={styles.modalBG} activeOpacity={1} onPress={() => setUsernameEditModal(false)}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Новый никнейм</Text>
+          <View style={[styles.modalBox, { backgroundColor: theme.cardBg }]}>
+            <Text style={[styles.modalTitle, { color: theme.icon }]}>Новый никнейм</Text>
             <TextInput
               value={usernameInput}
               onChangeText={setUsernameInput}
               placeholder="Введите новый ник"
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.inputBg,
+                  color: theme.inputText,
+                  borderColor: theme.inputBorder,
+                }
+              ]}
+              placeholderTextColor={theme.subtext}
               autoCapitalize="none"
               autoFocus
               editable={!isSavingUsername}
             />
-            <TouchableOpacity style={[styles.saveBtn, isSavingUsername && { opacity: 0.7 }]} onPress={onChangeUsername} disabled={isSavingUsername}>
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.button }, isSavingUsername && { opacity: 0.7 }]} onPress={onChangeUsername} disabled={isSavingUsername}>
               {isSavingUsername ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Сохранить</Text>}
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* Email */}
       <Modal visible={emailEditModal} transparent animationType="fade">
         <TouchableOpacity style={styles.modalBG} activeOpacity={1} onPress={() => setEmailEditModal(false)}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Новый Email</Text>
+          <View style={[styles.modalBox, { backgroundColor: theme.cardBg }]}>
+            <Text style={[styles.modalTitle, { color: theme.icon }]}>Новый Email</Text>
             <TextInput
               value={emailInput}
               onChangeText={setEmailInput}
               placeholder="Введите новый email"
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.inputBg,
+                  color: theme.inputText,
+                  borderColor: theme.inputBorder,
+                }
+              ]}
+              placeholderTextColor={theme.subtext}
               autoCapitalize="none"
               autoFocus
               keyboardType="email-address"
               editable={!isSavingEmail}
             />
-            <TouchableOpacity style={[styles.saveBtn, isSavingEmail && { opacity: 0.7 }]} onPress={onChangeEmail} disabled={isSavingEmail}>
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.button }, isSavingEmail && { opacity: 0.7 }]} onPress={onChangeEmail} disabled={isSavingEmail}>
               {isSavingEmail ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Сохранить</Text>}
             </TouchableOpacity>
           </View>
@@ -307,15 +386,15 @@ const logout = async () => {
       {/* Меню выбора */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <TouchableOpacity style={styles.modalBG} activeOpacity={1} onPress={() => setModalVisible(false)}>
-          <View style={styles.modalBox}>
+          <View style={[styles.modalBox, { backgroundColor: theme.cardBg }]}>
             <TouchableOpacity onPress={openCamera} style={styles.modalBtn}>
-              <Text style={styles.modalBtnText}>Сделать снимок</Text>
+              <Text style={[styles.modalBtnText, { color: theme.icon }]}>Сделать снимок</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={openImageLibrary} style={styles.modalBtn}>
-              <Text style={styles.modalBtnText}>Выбрать из галереи</Text>
+              <Text style={[styles.modalBtnText, { color: theme.icon }]}>Выбрать из галереи</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={openDocumentPicker} style={styles.modalBtn}>
-              <Text style={styles.modalBtnText}>Выбрать из файла</Text>
+              <Text style={[styles.modalBtnText, { color: theme.icon }]}>Выбрать из файла</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -324,23 +403,19 @@ const logout = async () => {
   );
 };
 
-// ----- Стили (без изменений) -----
 const styles = StyleSheet.create({
   outer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingTop: 32,
-    backgroundColor: '#F4F7FA',
   },
   card: {
     width: '94%',
-    backgroundColor: '#fff',
     borderRadius: 22,
     paddingVertical: 32,
     paddingHorizontal: 20,
     alignItems: 'center',
-    shadowColor: '#1E69DE',
     shadowOpacity: 0.11,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
@@ -348,7 +423,6 @@ const styles = StyleSheet.create({
   },
   avatarWrap: {
     marginBottom: 12,
-    shadowColor: '#1E69DE',
     shadowOpacity: 0.22,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },
@@ -358,57 +432,48 @@ const styles = StyleSheet.create({
     width: 94,
     height: 94,
     borderRadius: 48,
-    backgroundColor: '#eaf2ff',
     borderWidth: 2,
-    borderColor: '#1E69DE',
   },
   editBadge: {
     position: 'absolute',
     bottom: 3,
     right: 3,
-    backgroundColor: '#1E69DE',
     borderRadius: 12,
     width: 26,
     height: 26,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
   },
   name: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1E69DE',
     marginBottom: 3,
   },
   usernameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 19 },
-  username: { color: '#A4ADC1', fontWeight: '600', fontSize: 17 },
+  username: { fontWeight: '600', fontSize: 17 },
   info: { width: '100%', marginVertical: 8 },
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F6F8FC',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 7,
   },
-  infoValue: { color: '#282D3C', fontSize: 15, fontWeight: '500', flex: 1 },
+  infoValue: { fontSize: 15, fontWeight: '500', flex: 1 },
   logoutBtn: {
     marginTop: 26,
-    backgroundColor: '#FF4C5B',
     borderRadius: 12,
     paddingVertical: 13,
     paddingHorizontal: 62,
     alignItems: 'center',
-    shadowColor: '#F45C6B',
     shadowOpacity: 0.21,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
   logoutText: {
-    color: '#fff',
     fontSize: 17,
     fontWeight: 'bold',
   },
@@ -419,7 +484,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalBox: {
-    backgroundColor: '#fff',
     borderRadius: 17,
     padding: 18,
     width: 280,
@@ -430,7 +494,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 19,
     marginBottom: 10,
-    color: '#1E69DE',
   },
   modalBtn: {
     paddingVertical: 14,
@@ -441,22 +504,17 @@ const styles = StyleSheet.create({
   },
   modalBtnText: {
     fontSize: 17,
-    color: '#1E69DE',
     fontWeight: '700',
   },
   input: {
-    borderColor: '#e0e0e0',
     borderWidth: 1,
     borderRadius: 10,
     padding: 10,
     marginBottom: 14,
     fontSize: 16,
-    color: '#1E69DE',
-    backgroundColor: '#f7faff',
     width: 220,
   },
   saveBtn: {
-    backgroundColor: '#1E69DE',
     borderRadius: 10,
     paddingVertical: 11,
     paddingHorizontal: 36,
@@ -466,6 +524,45 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 17,
     fontWeight: 'bold',
+  },
+  // --- Кастомный тумблер ---
+  themeSwitchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 4,
+    width: '100%',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  themeSwitchLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  themeToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 10,
+  },
+  themeToggleTrack: {
+    width: 56,
+    height: 28,
+    borderRadius: 14,
+    marginHorizontal: 7,
+    backgroundColor: '#ffe98c',
+    justifyContent: 'center',
+  },
+  themeToggleThumb: {
+    position: 'absolute',
+    top: 3,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ffd700',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.20,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });
 

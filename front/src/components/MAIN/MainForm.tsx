@@ -1,14 +1,7 @@
-// MainForm.tsx
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  Platform,
-  Alert,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  Image, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -16,6 +9,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import UserProfile, { User } from './UserProfile';
 import CustomTabBar from './CustomTabBar';
+import { useTheme } from '../Theme.Context';
+
 
 type TabKey = 'home' | 'video' | 'history' | 'devices' | 'profile';
 
@@ -33,12 +28,13 @@ interface MainFormProps {
 const API_URL = 'http://194.84.56.147:8080';
 
 const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
+  const { theme } = useTheme();
+
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [user, setUser] = useState<User | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ← принимает полный url аватара (или локальный превью) от UserProfile
   const handleAvatarChanged = (newAvatarUrl: string) => {
     setUser(prev => (prev ? { ...prev, avatarUrl: newAvatarUrl } : prev));
   };
@@ -84,78 +80,72 @@ const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
     Alert.alert('Дверь открыта', 'Добро пожаловать!');
   };
 
-  // --- Главная вкладка ---
   const renderHome = () => (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      {/* Карточка приветствия */}
-      <View style={styles.card}>
+    <ScrollView contentContainerStyle={[styles.scroll, { backgroundColor: theme.background }]}>
+      <View style={[styles.card, { backgroundColor: theme.cardBg, shadowColor: theme.shadow }]}>
         <Image
-          style={styles.avatar}
+          style={[styles.avatar, { borderColor: theme.icon, backgroundColor: theme.inputBg }]}
           source={{
             uri:
               user?.avatarUrl ||
               `https://ui-avatars.com/api/?name=${user?.firstName || user?.username}&background=1E69DE&color=fff&rounded=true&size=128`,
-            cache: 'force-cache', // ← кешируем, чтоб повторные заходы были мгновенными
+            cache: 'force-cache',
           }}
         />
-        <Text style={styles.greeting}>Здравствуйте,</Text>
-        <Text style={styles.name}>{user?.firstName} {user?.lastName}</Text>
+        <Text style={[styles.greeting, { color: theme.subtext }]}>Здравствуйте,</Text>
+        <Text style={[styles.name, { color: theme.text }]}>{user?.firstName} {user?.lastName}</Text>
       </View>
 
-      {/* Карточка "Домофон" */}
-      <View style={styles.card}>
-        <Text style={styles.actionTitle}>Домофон</Text>
-        <Text style={styles.actionSubtitle}>Быстро открыть дверь</Text>
-        <TouchableOpacity activeOpacity={0.88} style={styles.doorButton} onPress={handleOpenDoor}>
+      <View style={[styles.card, { backgroundColor: theme.cardBg, shadowColor: theme.shadow }]}>
+        <Text style={[styles.actionTitle, { color: theme.text }]}>Домофон</Text>
+        <Text style={[styles.actionSubtitle, { color: theme.subtext }]}>Быстро открыть дверь</Text>
+        <TouchableOpacity activeOpacity={0.88} style={[styles.doorButton, { backgroundColor: theme.gradientStart }]} onPress={handleOpenDoor}>
           <MaterialCommunityIcons name="door" size={24} color="#fff" style={{ marginRight: 7 }} />
-          <Text style={styles.doorButtonText}>Открыть дверь</Text>
+          <Text style={[styles.doorButtonText, { color: theme.buttonText }]}>Открыть дверь</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Статистика */}
       <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <MaterialCommunityIcons name="phone-in-talk-outline" size={22} color="#1E69DE" style={{ marginBottom: 3 }} />
-          <Text style={styles.statValue}>{events.filter(ev => ev.type === 'call').length}</Text>
-          <Text style={styles.statLabel}>Звонка сегодня</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.cardBg, shadowColor: theme.shadow }]}>
+          <MaterialCommunityIcons name="phone-in-talk-outline" size={22} color={theme.icon} style={{ marginBottom: 3 }} />
+          <Text style={[styles.statValue, { color: theme.icon }]}>{events.filter(ev => ev.type === 'call').length}</Text>
+          <Text style={[styles.statLabel, { color: theme.subtext }]}>Звонка сегодня</Text>
         </View>
-        <View style={styles.statCard}>
-          <MaterialCommunityIcons name="lock-open-outline" size={22} color="#1E69DE" style={{ marginBottom: 3 }} />
-          <Text style={styles.statValue}>{events.filter(ev => ev.type === 'open').length}</Text>
-          <Text style={styles.statLabel}>Открыто дверей</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.cardBg, shadowColor: theme.shadow }]}>
+          <MaterialCommunityIcons name="lock-open-outline" size={22} color={theme.icon} style={{ marginBottom: 3 }} />
+          <Text style={[styles.statValue, { color: theme.icon }]}>{events.filter(ev => ev.type === 'open').length}</Text>
+          <Text style={[styles.statLabel, { color: theme.subtext }]}>Открыто дверей</Text>
         </View>
       </View>
 
       <View style={styles.sectionDivider} />
 
-      {/* Последние события */}
-      <Text style={styles.eventsSectionTitle}>Последние события</Text>
-      {events.length === 0 && <Text style={{ color: '#8d98a8', marginBottom: 20 }}>Нет событий</Text>}
+      <Text style={[styles.eventsSectionTitle, { color: theme.text }]}>Последние события</Text>
+      {events.length === 0 && <Text style={{ color: theme.subtext, marginBottom: 20 }}>Нет событий</Text>}
       {events.map((ev, i) => (
-        <View key={i} style={styles.eventCard}>
+        <View key={i} style={[styles.eventCard, { backgroundColor: theme.cardBg, shadowColor: theme.shadow }]}>
           <View style={styles.eventTypeIcon}>
             <MaterialCommunityIcons
               name={ev.type === 'call' ? 'phone-in-talk-outline' : 'lock-open-outline'}
               size={22}
-              color={ev.type === 'call' ? '#1E69DE' : '#28c46c'}
+              color={ev.type === 'call' ? theme.icon : theme.success}
             />
           </View>
           <Image source={{ uri: ev.avatar }} style={styles.eventAvatar} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.eventText}>{ev.text}</Text>
-            <Text style={styles.eventTime}>{ev.time}</Text>
+            <Text style={[styles.eventText, { color: theme.text }]}>{ev.text}</Text>
+            <Text style={[styles.eventTime, { color: theme.subtext }]}>{ev.time}</Text>
           </View>
         </View>
       ))}
     </ScrollView>
   );
 
-  // --- Остальные табы ---
   const renderTabContent = () => {
     if (loading)
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text>Загрузка...</Text>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }}>
+          <Text style={{ color: theme.text }}>Загрузка...</Text>
         </View>
       );
 
@@ -164,26 +154,26 @@ const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
         return renderHome();
       case 'video':
         return (
-          <View style={styles.centerTab}>
-            <Text style={styles.tabTitle}>Видеозвонок</Text>
-            <View style={styles.videoStub}>
-              <Text style={{ color: '#aab3c7' }}>Тут будет видео с камеры</Text>
+          <View style={[styles.centerTab, { backgroundColor: theme.background }]}>
+            <Text style={[styles.tabTitle, { color: theme.text }]}>Видеозвонок</Text>
+            <View style={[styles.videoStub, { backgroundColor: theme.inputBg }]}>
+              <Text style={{ color: theme.subtext }}>Тут будет видео с камеры</Text>
             </View>
-            <TouchableOpacity style={styles.doorButton} onPress={handleOpenDoor}>
-              <Text style={styles.doorButtonText}>Открыть дверь</Text>
+            <TouchableOpacity style={[styles.doorButton, { backgroundColor: theme.gradientStart }]} onPress={handleOpenDoor}>
+              <Text style={[styles.doorButtonText, { color: theme.buttonText }]}>Открыть дверь</Text>
             </TouchableOpacity>
           </View>
         );
       case 'history':
         return (
-          <ScrollView contentContainerStyle={styles.scroll}>
-            <Text style={styles.tabTitle}>История событий</Text>
+          <ScrollView contentContainerStyle={[styles.scroll, { backgroundColor: theme.background }]}>
+            <Text style={[styles.tabTitle, { color: theme.text }]}>История событий</Text>
             {events.map((ev, i) => (
-              <View key={i} style={styles.eventCard}>
+              <View key={i} style={[styles.eventCard, { backgroundColor: theme.cardBg, shadowColor: theme.shadow }]}>
                 <Image source={{ uri: ev.avatar }} style={styles.eventAvatar} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.eventText}>{ev.text}</Text>
-                  <Text style={styles.eventTime}>{ev.time}</Text>
+                  <Text style={[styles.eventText, { color: theme.text }]}>{ev.text}</Text>
+                  <Text style={[styles.eventTime, { color: theme.subtext }]}>{ev.time}</Text>
                 </View>
               </View>
             ))}
@@ -191,33 +181,39 @@ const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
         );
       case 'devices':
         return (
-          <View style={styles.centerTab}>
-            <Text style={styles.tabTitle}>Устройства</Text>
-            <TouchableOpacity style={styles.deviceButton} onPress={handleOpenDoor}>
-              <Text style={styles.deviceButtonText}>Открыть ворота</Text>
+          <View style={[styles.centerTab, { backgroundColor: theme.background }]}>
+            <Text style={[styles.tabTitle, { color: theme.text }]}>Устройства</Text>
+            <TouchableOpacity style={[styles.deviceButton, { backgroundColor: theme.success }]} onPress={handleOpenDoor}>
+              <Text style={[styles.deviceButtonText, { color: theme.buttonText }]}>Открыть ворота</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.deviceButton} onPress={() => Alert.alert('Свет', 'Свет включён')}>
-              <Text style={styles.deviceButtonText}>Включить свет</Text>
+            <TouchableOpacity style={[styles.deviceButton, { backgroundColor: theme.icon }]} onPress={() => Alert.alert('Свет', 'Свет включён')}>
+              <Text style={[styles.deviceButtonText, { color: theme.buttonText }]}>Включить свет</Text>
             </TouchableOpacity>
           </View>
         );
       case 'profile':
-        return (
-          <ScrollView contentContainerStyle={styles.scroll}>
-            {user &&<UserProfile
-  user={user}
-  onAvatarChanged={handleAvatarChanged}
-  onLogout={onLogout}        // ← теперь прокидываем!
-/>}
-          </ScrollView>
-        );
+  return (
+    <ScrollView contentContainerStyle={[styles.scroll, { backgroundColor: theme.background }]}>
+      {/* Уберём absolute — пусть в потоке */}
+      <View style={{ width: '100%', alignItems: 'flex-end', marginBottom: 12 }}>
+        
+      </View>
+      {user && (
+        <UserProfile
+          user={user}
+          onAvatarChanged={handleAvatarChanged}
+          onLogout={onLogout}
+        />
+      )}
+    </ScrollView>
+  );
       default:
         return null;
     }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f7f9fb' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       <View style={{ flex: 1 }}>{renderTabContent()}</View>
       <CustomTabBar active={activeTab} onChange={setActiveTab} />
     </SafeAreaView>

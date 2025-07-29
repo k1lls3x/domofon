@@ -2,65 +2,77 @@ import React, { createContext, useContext, useState, useMemo, ReactNode } from '
 
 export interface Theme {
   mode: 'light' | 'dark';
-  background: string;      // фон экрана
-  cardBg: string;          // фон карточек (форм, попапов)
-  shadow: string;          // цвет тени карточек
-  text: string;            // основной текст
-  subtext: string;         // вспомогательный текст (placeholder, описания)
-  inputBg: string;         // фон полей ввода
-  inputBorder: string;     // рамка полей ввода
-  icon: string;            // цвет иконок
-  link: string;            // цвет ссылок
-  gradientStart: string;   // начало градиента кнопок
-  gradientEnd: string;     // конец градиента кнопок
-  btnText: string;         // текст внутри кнопок
-  btnDisabled: string;     // фон отключённых кнопок (если понадобится)
-  btnTextDisabled: string; // текст отключённых кнопок
-
+  background: string;
+  cardBg: string;
+  shadow: string;
+  text: string;
+  subtext: string;
+  inputBg: string;
+  inputText: string;
+  inputBorder: string;
+  icon: string;
+  tabBarBg: string;
+  tabBarIcon: string;
+  tabBarIconActive: string;
+  button: string;
+  buttonText: string;
+  buttonSecondary: string;
+  buttonSecondaryText: string;
   error: string;
   success: string;
+  link: string;                
+  gradientStart: string;
+  gradientEnd: string;
 }
 
 const lightTheme: Theme = {
+  gradientStart: '#1E69DE',
+  gradientEnd: '#5596FF',
   mode: 'light',
-  background: '#F7F8FA',
-  cardBg: '#FFFFFF',
-  shadow: '#23254B20',      // полупрозрачная тень
-  text: '#222222',
-  subtext: '#9099B6',
-  inputBg: '#F7FAFD',
-  inputBorder: '#E0E6EF',
-  icon: '#5568FE',
-  link: '#2585F4',
-  gradientStart: '#2585F4',
-  gradientEnd: '#1B2B64',
-  btnText: '#FFFFFF',
-  btnDisabled: '#E2E5F7',
-  btnTextDisabled: '#BFC9DE',
-
-  error: '#e43a4b',
-  success: '#41d67a',
+  background: '#f4f7fa',
+  cardBg: '#ffffff',
+  shadow: '#b6d7fa',
+  text: '#181B26',
+  subtext: '#8592a8',
+  inputBg: '#f6f8fc',
+  inputText: '#262626',
+  inputBorder: '#e0e0e0',
+  icon: '#1E69DE',
+  tabBarBg: '#ffffff',
+  tabBarIcon: '#B0B7C2',
+  tabBarIconActive: '#1869de',
+  button: '#1E69DE',
+  buttonText: '#ffffff',
+  buttonSecondary: '#eaf2ff',
+  buttonSecondaryText: '#1E69DE',
+  error: '#E43A4B',
+  success: '#3DD598',
+  link: '#1E69DE',          
 };
 
 const darkTheme: Theme = {
+  gradientStart: '#337AFF',
+  gradientEnd: '#5596FF',
   mode: 'dark',
-  background: '#18192B',
-  cardBg: '#23243A',
-  shadow: '#00000080',
+  background: '#181C2A',
+  cardBg: '#22263A',
+  shadow: '#10121B',
   text: '#FFFFFF',
-
-  error: '#e43a4b',
-  success: '#41d67a',
-  subtext: '#B8BDD4',
-  inputBg: '#23243A',
-  inputBorder: '#414262',
-  icon: '#FFFFFF',
-  link: '#68A0FF',
-  gradientStart: '#6FB1FC',
-  gradientEnd: '#1E69DE',
-  btnText: '#FFFFFF',
-  btnDisabled: '#323356',
-  btnTextDisabled: '#787A9B',
+  subtext: '#A5ADC3',
+  inputBg: '#252A41',
+  inputText: '#FFFFFF',
+  inputBorder: '#313657',
+  icon: '#6D9EFF',
+  tabBarBg: '#22263A',
+  tabBarIcon: '#A5ADC3',
+  tabBarIconActive: '#4E8BFF',
+  button: '#337AFF',
+  buttonText: '#FFFFFF',
+  buttonSecondary: '#252A41',
+  buttonSecondaryText: '#FFFFFF',
+  error: '#F45C6B',
+  success: '#38E39F',
+  link: '#6D9EFF',            // ← и более яркий синий в тёмной теме
 };
 
 type ThemeContextType = {
@@ -79,7 +91,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [theme, setTheme] = useState<Theme>(lightTheme);
 
   const toggleTheme = () =>
-    setTheme((prev) => (prev.mode === 'light' ? darkTheme : lightTheme));
+    setTheme(prev => (prev.mode === 'light' ? darkTheme : lightTheme));
 
   const value = useMemo(() => ({ theme, toggleTheme }), [theme]);
 
