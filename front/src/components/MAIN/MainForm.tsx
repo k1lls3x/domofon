@@ -1,6 +1,14 @@
+// MainForm.tsx
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform, Alert
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,6 +16,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import UserProfile, { User } from './UserProfile';
 import CustomTabBar from './CustomTabBar';
+
 type TabKey = 'home' | 'video' | 'history' | 'devices' | 'profile';
 
 interface Event {
@@ -29,8 +38,9 @@ const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ← принимает полный url аватара (или локальный превью) от UserProfile
   const handleAvatarChanged = (newAvatarUrl: string) => {
-    setUser((prev) => prev ? { ...prev, avatarUrl: newAvatarUrl } : prev);
+    setUser(prev => (prev ? { ...prev, avatarUrl: newAvatarUrl } : prev));
   };
 
   useEffect(() => {
@@ -60,7 +70,7 @@ const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
           { type: 'open', time: '09:56', text: 'Открыта дверь', avatar: 'https://i.pravatar.cc/40?img=13' },
           { type: 'call', time: '11:23', text: 'Вызов с домофона', avatar: 'https://i.pravatar.cc/40?img=11' },
         ]);
-      } catch (err: any) {
+      } catch {
         onLogout();
         Alert.alert('Ошибка', 'Авторизация истекла или профиль не найден');
       } finally {
@@ -82,7 +92,10 @@ const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
         <Image
           style={styles.avatar}
           source={{
-            uri: user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.firstName || user?.username}&background=1E69DE&color=fff&rounded=true&size=128`,
+            uri:
+              user?.avatarUrl ||
+              `https://ui-avatars.com/api/?name=${user?.firstName || user?.username}&background=1E69DE&color=fff&rounded=true&size=128`,
+            cache: 'force-cache', // ← кешируем, чтоб повторные заходы были мгновенными
           }}
         />
         <Text style={styles.greeting}>Здравствуйте,</Text>
@@ -93,11 +106,7 @@ const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
       <View style={styles.card}>
         <Text style={styles.actionTitle}>Домофон</Text>
         <Text style={styles.actionSubtitle}>Быстро открыть дверь</Text>
-        <TouchableOpacity
-          activeOpacity={0.88}
-          style={styles.doorButton}
-          onPress={handleOpenDoor}
-        >
+        <TouchableOpacity activeOpacity={0.88} style={styles.doorButton} onPress={handleOpenDoor}>
           <MaterialCommunityIcons name="door" size={24} color="#fff" style={{ marginRight: 7 }} />
           <Text style={styles.doorButtonText}>Открыть дверь</Text>
         </TouchableOpacity>
@@ -143,13 +152,16 @@ const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
 
   // --- Остальные табы ---
   const renderTabContent = () => {
-    if (loading) return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Загрузка...</Text>
-      </View>
-    );
+    if (loading)
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text>Загрузка...</Text>
+        </View>
+      );
+
     switch (activeTab) {
-      case 'home': return renderHome();
+      case 'home':
+        return renderHome();
       case 'video':
         return (
           <View style={styles.centerTab}>
@@ -192,10 +204,15 @@ const MainForm: React.FC<MainFormProps> = ({ onLogout }) => {
       case 'profile':
         return (
           <ScrollView contentContainerStyle={styles.scroll}>
-            {user && <UserProfile user={user} onAvatarChanged={handleAvatarChanged} />}
+            {user &&<UserProfile
+  user={user}
+  onAvatarChanged={handleAvatarChanged}
+  onLogout={onLogout}        // ← теперь прокидываем!
+/>}
           </ScrollView>
         );
-      default: return null;
+      default:
+        return null;
     }
   };
 
