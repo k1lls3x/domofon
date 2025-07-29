@@ -9,7 +9,8 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
-  Animated,
+  Switch,
+  Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -38,7 +39,6 @@ const UserProfile: React.FC<{
   onLogout?: () => void;
 }> = ({ user, onlyMain, onAvatarChanged, onLogout }) => {
   const { theme, toggleTheme } = useTheme();
-
   const [modalVisible, setModalVisible] = useState(false);
   const [avatar, setAvatar] = useState<string | undefined>(user.avatarUrl);
 
@@ -50,36 +50,18 @@ const UserProfile: React.FC<{
   const [emailInput, setEmailInput] = useState(user.email);
   const [isSavingEmail, setIsSavingEmail] = useState(false);
 
-  // Анимация тумблера
-  const [dark, setDark] = useState(theme.mode === 'dark');
-  const anim = useState(new Animated.Value(theme.mode === 'dark' ? 1 : 0))[0];
+  useEffect(() => setAvatar(user.avatarUrl), [user.avatarUrl]);
 
-  useEffect(() => {
-    setDark(theme.mode === 'dark');
-    Animated.timing(anim, {
-      toValue: theme.mode === 'dark' ? 1 : 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  }, [theme.mode]);
-
-  useEffect(() => {
-    setAvatar(user.avatarUrl);
-  }, [user.avatarUrl]);
-
-  // Локальный превью для аватарки
   const showLocalPreview = (localUri: string) => {
     setAvatar(localUri);
     onAvatarChanged?.(localUri);
   };
 
-  // Выход
   const logout = async () => {
     await AsyncStorage.multiRemove(['access_token', 'refresh_token']);
     if (onLogout) onLogout();
   };
 
-  // Загрузка аватарки
   const uploadAvatar = async (uri: string) => {
     try {
       const token = await AsyncStorage.getItem('access_token');
@@ -200,62 +182,6 @@ const UserProfile: React.FC<{
     return `+7 (${d.slice(1, 4)})-${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`;
   };
 
-  // ...остальной код выше
-
-// ==== Кастомный тумблер ====
-const renderThemeToggle = () => {
-  const trackColor = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['#ffe98c', '#222a39'],
-  });
-  const thumbPos = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [2, 32], // ширина - круг = 56-22 = 34; чуть отступа с краю
-  });
-  const thumbColor = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['#ffd700', '#284269'],
-  });
-
-  return (
-    <View style={styles.themeSwitchRow}>
-      <Text
-        style={[
-          styles.themeSwitchLabel,
-          { color: theme.mode === 'light' ? '#1869DE' : '#fff' }
-        ]}
-      >
-        Сменить тему:
-      </Text>
-      <TouchableOpacity
-        style={styles.themeToggleBtn}
-        activeOpacity={0.88}
-        onPress={toggleTheme}
-        accessibilityRole="switch"
-        accessibilityState={{ checked: dark }}
-      >
-        <MaterialCommunityIcons name="white-balance-sunny" size={20} color={dark ? "#bbb" : "#FFD93A"} />
-        <Animated.View style={[
-          styles.themeToggleTrack,
-          { backgroundColor: trackColor }
-        ]}>
-          <Animated.View
-            style={[
-              styles.themeToggleThumb,
-              {
-                left: thumbPos,
-                backgroundColor: thumbColor,
-                shadowColor: dark ? "#1e69de" : "#ffd700",
-              },
-            ]}
-          />
-        </Animated.View>
-        <MaterialCommunityIcons name="moon-waning-crescent" size={20} color={dark ? "#9ecfff" : "#aaa"} />
-      </TouchableOpacity>
-    </View>
-  );
-};
-
   return (
     <View style={[styles.outer, { backgroundColor: theme.background }]}>
       <View style={[styles.card, { backgroundColor: theme.cardBg, shadowColor: theme.shadow }]}>
@@ -314,10 +240,26 @@ const renderThemeToggle = () => {
           </View>
         </View>
 
-        {/* ---- Только кастомный тумблер ---- */}
-        {renderThemeToggle()}
+        <View style={styles.themeSwitchRow}>
+  <Text
+    style={[
+      styles.themeSwitchLabel,
+      { color: theme.mode === 'light' ? '#1869DE' : '#fff' }
+    ]}
+  >
+    Сменить тему
+  </Text>
+  <Switch
+    value={theme.mode === 'dark'}
+    onValueChange={toggleTheme}
+    trackColor={{ false: '#dbeafe', true: '#3956b3' }}
+    thumbColor={theme.mode === 'dark' ? '#1869DE' : '#fff'}
+    ios_backgroundColor="#dbeafe"
+    style={{ marginRight: 2, transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
+  />
+</View>
 
-        {/* Кнопка выхода */}
+
         {!onlyMain && (
           <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.error }]} onPress={logout}>
             <Text style={[styles.logoutText, { color: theme.buttonText }]}>Выйти</Text>
@@ -383,7 +325,6 @@ const renderThemeToggle = () => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Меню выбора */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <TouchableOpacity style={styles.modalBG} activeOpacity={1} onPress={() => setModalVisible(false)}>
           <View style={[styles.modalBox, { backgroundColor: theme.cardBg }]}>
@@ -525,7 +466,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: 'bold',
   },
-  // --- Кастомный тумблер ---
+  // --- Обычный Switch ---
   themeSwitchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -538,31 +479,6 @@ const styles = StyleSheet.create({
   themeSwitchLabel: {
     fontSize: 18,
     fontWeight: '600',
-  },
-  themeToggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 10,
-  },
-  themeToggleTrack: {
-    width: 56,
-    height: 28,
-    borderRadius: 14,
-    marginHorizontal: 7,
-    backgroundColor: '#ffe98c',
-    justifyContent: 'center',
-  },
-  themeToggleThumb: {
-    position: 'absolute',
-    top: 3,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#ffd700',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.20,
-    shadowRadius: 4,
-    elevation: 4,
   },
 });
 
