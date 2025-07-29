@@ -1,10 +1,20 @@
+// src/components/MAIN/CustomTabBar.tsx
+
 import React, { useRef, useEffect, useState } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Platform, Animated, useWindowDimensions } from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  Platform,
+  Animated,
+  useWindowDimensions,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../Theme.Context';
 
-// Типы вкладок
 type TabKey = 'home' | 'video' | 'history' | 'devices' | 'profile';
 
 const TABS: { key: TabKey; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
@@ -20,16 +30,14 @@ interface Props {
   onChange: (key: TabKey) => void;
 }
 
-/**
- * Кастомная нижняя навигация c «стеклянной» pазделительной плашкой,
- * стилизованной под iOS‑style гель (как на скрине WatchOS 10).
- */
 const CustomTabBar: React.FC<Props> = ({ active, onChange }) => {
   const { width } = useWindowDimensions();
   const tabWidth = (width - 20) / TABS.length;
   const activeIdx = TABS.findIndex(tab => tab.key === active);
   const indicatorX = useRef(new Animated.Value(activeIdx)).current;
   const [pressedIdx, setPressedIdx] = useState<number | null>(null);
+
+  const { theme } = useTheme();
 
   useEffect(() => {
     const idx = TABS.findIndex(tab => tab.key === active);
@@ -42,11 +50,9 @@ const CustomTabBar: React.FC<Props> = ({ active, onChange }) => {
   }, [active]);
 
   return (
-    <View style={styles.wrapper}>
-      {/* Светлая рамка навбара */}
+    <View style={[styles.wrapper, { backgroundColor: theme.tabBarBg }]}>
       <View pointerEvents="none" style={styles.border} />
 
-      {/* Гелевая плашка активного таба */}
       <Animated.View
         style={[
           styles.gel,
@@ -60,38 +66,29 @@ const CustomTabBar: React.FC<Props> = ({ active, onChange }) => {
         ]}
         pointerEvents="none"
       >
-        {/* Размытие */}
-        <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={50} tint={theme.mode === 'light' ? 'light' : 'dark'} style={StyleSheet.absoluteFill} />
 
-        {/* Лёгкий верхний бликовый градиент */}
         <LinearGradient
-          colors={[
-            'rgba(255,255,255,0.75)',
-            'rgba(255,255,255,0.35)',
-            'rgba(255,255,255,0.08)',
-          ]}
+          colors={theme.mode === 'light'
+            ? ['rgba(255,255,255,0.75)', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0.08)']
+            : ['rgba(0,0,0,0.75)', 'rgba(0,0,0,0.45)', 'rgba(0,0,0,0.08)']}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={styles.topHighlight}
         />
 
-        {/* Едва заметная нижняя тень, чтобы гель парил */}
         <LinearGradient
-          colors={[
-            'rgba(0,0,0,0.04)',
-            'rgba(0,0,0,0.07)',
-            'rgba(0,0,0,0.12)',
-          ]}
+          colors={theme.mode === 'light'
+            ? ['rgba(0,0,0,0.04)', 'rgba(0,0,0,0.07)', 'rgba(0,0,0,0.12)']
+            : ['rgba(255,255,255,0.04)', 'rgba(255,255,255,0.07)', 'rgba(255,255,255,0.12)']}
           start={{ x: 0.5, y: 1 }}
           end={{ x: 0.5, y: 0 }}
           style={styles.bottomShadow}
         />
 
-        {/* Внутренняя вуаль для глубины */}
         <View style={styles.innerVeil} />
       </Animated.View>
 
-      {/* Кнопки вкладок */}
       <View style={styles.container}>
         {TABS.map((tab, idx) => {
           const isActive = tab.key === active;
@@ -104,30 +101,34 @@ const CustomTabBar: React.FC<Props> = ({ active, onChange }) => {
               onPressIn={() => setPressedIdx(idx)}
               onPressOut={() => setPressedIdx(null)}
             >
-              {/* Мини‑гель при удержании */}
               {pressedIdx === idx && (
                 <View style={styles.tabPressOverlay}>
-                  <BlurView intensity={55} tint="light" style={StyleSheet.absoluteFill} />
+                  <BlurView intensity={55} tint={theme.mode === 'light' ? 'light' : 'dark'} style={StyleSheet.absoluteFill} />
                   <LinearGradient
-                    colors={[
-                      'rgba(255,255,255,0.55)',
-                      'rgba(255,255,255,0.25)',
-                      'rgba(255,255,255,0.06)',
-                    ]}
+                    colors={theme.mode === 'light'
+                      ? ['rgba(255,255,255,0.55)', 'rgba(255,255,255,0.25)', 'rgba(255,255,255,0.06)']
+                      : ['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0.06)']}
                     start={{ x: 0.5, y: 0 }}
                     end={{ x: 0.5, y: 1 }}
                     style={StyleSheet.absoluteFill}
                   />
                 </View>
               )}
-
               <MaterialCommunityIcons
                 name={tab.icon}
                 size={26}
-                color={isActive ? '#1869de' : '#B0B7C2'}
+                color={isActive ? theme.tabBarIconActive : theme.tabBarIcon}
                 style={{ zIndex: 2 }}
               />
-              <Text style={[styles.label, isActive && styles.labelActive]}>{tab.label}</Text>
+              <Text style={[
+                styles.label,
+                {
+                  color: isActive ? theme.tabBarIconActive : theme.tabBarIcon,
+                  fontWeight: isActive ? '800' : '700',
+                }
+              ]}>
+                {tab.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -136,22 +137,13 @@ const CustomTabBar: React.FC<Props> = ({ active, onChange }) => {
   );
 };
 
-// Стили
 const styles = StyleSheet.create({
   wrapper: {
-    position: 'absolute',
-    left: 10,
-    right: 10,
+    position: 'absolute', left: 10, right: 10,
     bottom: Platform.OS === 'ios' ? 22 : 8,
-    height: 66,
-    borderRadius: 32,
-    overflow: 'visible',
-    backgroundColor: 'rgba(255,255,255,0.90)',
+    height: 66, borderRadius: 32, overflow: 'hidden',
     justifyContent: 'center',
-    shadowColor: '#b6d7fa',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 4 },
   },
   border: {
     ...StyleSheet.absoluteFillObject,
@@ -161,63 +153,23 @@ const styles = StyleSheet.create({
     zIndex: 9,
   },
   gel: {
-    position: 'absolute',
-    top: 6,
-    height: 54,
-    borderRadius: 24,
-    overflow: 'hidden',
+    position: 'absolute', top: 6, height: 54,
+    borderRadius: 24, overflow: 'hidden',
     zIndex: 1,
-    backgroundColor: 'rgba(255,255,255,0.16)',
     borderWidth: 0.6,
     borderColor: 'rgba(210,230,255,0.30)',
   },
-  topHighlight: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 24,
-  },
-  bottomShadow: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 24,
-  },
+  topHighlight: { ...StyleSheet.absoluteFillObject, borderRadius: 24 },
+  bottomShadow: { ...StyleSheet.absoluteFillObject, borderRadius: 24 },
   innerVeil: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 24,
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
-  container: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 66,
-    justifyContent: 'space-around',
-    zIndex: 5,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 58,
-    borderRadius: 23,
-    position: 'relative',
-    overflow: 'visible',
-  },
-  tabPressOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 23,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-  label: {
-    color: '#B0B7C2',
-    fontWeight: '700',
-    fontSize: 12,
-    marginTop: 3,
-    zIndex: 2,
-  },
-  labelActive: {
-    color: '#1869de',
-    fontWeight: '800',
-  },
+  container: { flexDirection: 'row', alignItems: 'center', height: 66, justifyContent: 'space-around', zIndex: 5 },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 58, borderRadius: 23 },
+  tabPressOverlay: { ...StyleSheet.absoluteFillObject, borderRadius: 23, overflow: 'hidden' },
+  label: { fontSize: 12, marginTop: 3, zIndex: 2 },
 });
 
 export default CustomTabBar;
